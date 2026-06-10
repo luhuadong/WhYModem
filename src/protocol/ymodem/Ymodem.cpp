@@ -1577,6 +1577,7 @@ void Ymodem::transmitStageFinishing()
       break;
     }
 
+    case CodeAck:
     case CodeC:
     {
       memset(&(txBuffer[YMODEM_PACKET_HEADER]), 0, YMODEM_PACKET_SIZE);
@@ -1692,6 +1693,17 @@ void Ymodem::transmitStageFinished()
 
     case CodeA1:
     case CodeA2:
+    {
+      timeCount  = 0;
+      errorCount = 0;
+      dataCount  = 0;
+      code       = CodeNone;
+      stage      = StageNone;
+      callback(StatusFinish, NULL, NULL);
+
+      break;
+    }
+
     case CodeCan:
     {
       timeCount  = 0;

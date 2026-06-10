@@ -232,10 +232,23 @@ Ymodem::Code FileReceiver::callback(Status status, uint8_t *buff, uint32_t *len)
 
 uint32_t FileReceiver::read(uint8_t *buff, uint32_t len)
 {
-    return serialPort->read((char *)buff, len);
+    const qint64 n = serialPort->read((char *)buff, len);
+    if(n <= 0)
+    {
+        return 0;
+    }
+    emit rawDataReceived(QByteArray(reinterpret_cast<const char *>(buff), static_cast<int>(n)));
+    return static_cast<uint32_t>(n);
 }
 
 uint32_t FileReceiver::write(uint8_t *buff, uint32_t len)
 {
-    return serialPort->write((char *)buff, len);
+    const qint64 n = serialPort->write((char *)buff, len);
+    if(n <= 0)
+    {
+        return 0;
+    }
+    serialPort->waitForBytesWritten(3000);
+    serialPort->flush();
+    return static_cast<uint32_t>(n);
 }

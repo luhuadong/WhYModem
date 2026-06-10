@@ -2,6 +2,7 @@
 #define FILERECEIVER_H
 
 #include <QFile>
+#include <QByteArray>
 #include <QTimer>
 #include <QObject>
 #include <QSerialPort>
@@ -29,6 +30,7 @@ public:
 signals:
     void receiveProgress(int progress);
     void receiveStatus(FileReceiver::Status status);
+    void rawDataReceived(const QByteArray &data);
 
 private slots:
     void readTimeOut();

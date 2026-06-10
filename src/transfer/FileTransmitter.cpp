@@ -1,5 +1,8 @@
 #include "FileTransmitter.h"
 #include <QFileInfo>
+#include <QThread>
+#include <algorithm>
+#include <cstring>
 
 #define READ_TIME_OUT   (10)
 #define WRITE_TIME_OUT  (100)
@@ -9,7 +12,10 @@ FileTransmitter::FileTransmitter(QObject *parent) :
     file(new QFile),
     readTimer(new QTimer),
     writeTimer(new QTimer),
-    serialPort(new QSerialPort)
+    serialPort(new QSerialPort),
+    firstDataDelayMs(500),
+    interPacketDelayMs(500),
+    txEchoOffset(0)
 {
     setTimeDivide(499);
     setTimeMax(5);
@@ -49,10 +55,19 @@ void FileTransmitter::setPortBaudRate(qint32 baudrate)
     serialPort->setBaudRate(baudrate);
 }
 
+void FileTransmitter::setTransferDelays(int firstDataDelayMs, int interPacketDelayMs)
+{
+    this->firstDataDelayMs = std::max(0, firstDataDelayMs);
+    this->interPacketDelayMs = std::max(0, interPacketDelayMs);
+}
+
 bool FileTransmitter::startTransmit()
 {
     progress = 0;
     status   = StatusEstablish;
+    filteredRx.clear();
+    txEcho.clear();
+    txEchoOffset = 0;
 
     if(serialPort->open(QSerialPort::ReadWrite) == true)
     {
@@ -219,10 +234,110 @@ Ymodem::Code FileTransmitter::callback(Status status, uint8_t *buff, uint32_t *l
 
 uint32_t FileTransmitter::read(uint8_t *buff, uint32_t len)
 {
-    return serialPort->read((char *)buff, len);
+    if(len == 0)
+    {
+        return 0;
+    }
+
+    if(filteredRx.isEmpty())
+    {
+        const QByteArray data = serialPort->readAll();
+        if(data.isEmpty())
+        {
+            return 0;
+        }
+        emit rawDataReceived(data);
+        appendFilteredRx(data);
+    }
+
+    const int n = std::min<int>(static_cast<int>(len), filteredRx.size());
+    if(n <= 0)
+    {
+        return 0;
+    }
+    std::memcpy(buff, filteredRx.constData(), static_cast<size_t>(n));
+    filteredRx.remove(0, n);
+    return static_cast<uint32_t>(n);
 }
 
 uint32_t FileTransmitter::write(uint8_t *buff, uint32_t len)
 {
-    return serialPort->write((char *)buff, len);
+    if(len == 0)
+    {
+        return 0;
+    }
+
+    delayBeforePacket(buff, len);
+
+    uint32_t written = 0;
+    while(written < len)
+    {
+        const qint64 n = serialPort->write(reinterpret_cast<const char *>(buff + written), len - written);
+        if(n <= 0)
+        {
+            break;
+        }
+        written += static_cast<uint32_t>(n);
+        if(serialPort->waitForBytesWritten(3000) == false)
+        {
+            break;
+        }
+    }
+    serialPort->flush();
+
+    if(written == len)
+    {
+        txEcho = QByteArray(reinterpret_cast<const char *>(buff), static_cast<int>(len));
+        txEchoOffset = 0;
+    }
+
+    return written;
+}
+
+void FileTransmitter::appendFilteredRx(const QByteArray &data)
+{
+    for(char ch : data)
+    {
+        if(!txEcho.isEmpty())
+        {
+            if(txEchoOffset < txEcho.size() && ch == txEcho.at(txEchoOffset))
+            {
+                ++txEchoOffset;
+                if(txEchoOffset >= txEcho.size())
+                {
+                    txEcho.clear();
+                    txEchoOffset = 0;
+                }
+                continue;
+            }
+
+            txEcho.clear();
+            txEchoOffset = 0;
+        }
+
+        filteredRx.append(ch);
+    }
+}
+
+void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
+{
+    if(len < 3)
+    {
+        return;
+    }
+
+    const bool ymodemPacket = (buff[0] == CodeSoh) || (buff[0] == CodeStx);
+    if(!ymodemPacket)
+    {
+        return;
+    }
+
+    if(buff[1] == 1)
+    {
+        QThread::msleep(static_cast<unsigned long>(firstDataDelayMs));
+    }
+    else if(buff[1] > 1)
+    {
+        QThread::msleep(static_cast<unsigned long>(interPacketDelayMs));
+    }
 }

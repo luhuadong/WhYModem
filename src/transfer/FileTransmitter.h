@@ -2,6 +2,7 @@
 #define FILETRANSMITTER_H
 
 #include <QFile>
+#include <QByteArray>
 #include <QTimer>
 #include <QObject>
 #include <QSerialPort>
@@ -19,6 +20,7 @@ public:
 
     void setPortName(const QString &name);
     void setPortBaudRate(qint32 baudrate);
+    void setTransferDelays(int firstDataDelayMs, int interPacketDelayMs);
 
     bool startTransmit();
     void stopTransmit();
@@ -29,6 +31,7 @@ public:
 signals:
     void transmitProgress(int progress);
     void transmitStatus(FileTransmitter::Status status);
+    void rawDataReceived(const QByteArray &data);
 
 private slots:
     void readTimeOut();
@@ -39,6 +42,8 @@ private:
 
     uint32_t read(uint8_t *buff, uint32_t len);
     uint32_t write(uint8_t *buff, uint32_t len);
+    void appendFilteredRx(const QByteArray &data);
+    void delayBeforePacket(const uint8_t *buff, uint32_t len);
 
     QFile       *file;
     QTimer      *readTimer;
@@ -49,6 +54,11 @@ private:
     Status   status;
     uint64_t fileSize;
     uint64_t fileCount;
+    int firstDataDelayMs;
+    int interPacketDelayMs;
+    QByteArray filteredRx;
+    QByteArray txEcho;
+    int txEchoOffset;
 };
 
 #endif // FILETRANSMITTER_H
