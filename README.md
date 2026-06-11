@@ -11,7 +11,8 @@ WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，
 * `src/protocol/ymodem/`：YMODEM 协议状态机，不依赖 Qt 串口或文件 API。
 * `src/transfer/`：串口文件收发适配层，将协议读写回调连接到 `QFile` 和 `QSerialPort`。当前实现使用 YMODEM，文件名和类名不绑定协议名前缀，方便后续扩展 XMODEM/ZMODEM。
 * `resources/`：应用图标和 Qt 资源文件。
-* `packaging/`：Linux 桌面入口和打包相关文件。
+* `packaging/`：打包脚本与 Linux 桌面入口文件。
+* `docs/`：平台相关的构建与打包文档。
 
 依赖模块为 Qt Widgets、Qt SerialPort 和 Qt Core/Gui。
 
@@ -101,6 +102,22 @@ build\WhYModem.exe
 ```
 
 如果使用 MinGW，请在 Qt 的 MinGW 环境中运行，并确保 `cmake`、`ninja` 或 `mingw32-make` 在 `PATH` 中。
+
+### Windows 打包发布
+
+Release 构建完成后，使用 `windeployqt` 收集依赖并生成 ZIP：
+
+```powershell
+.\packaging\deploy-windows.ps1
+```
+
+或：
+
+```bat
+packaging\deploy-windows.bat
+```
+
+详细步骤、参数说明和常见问题见 [docs/windows-build-and-package.md](docs/windows-build-and-package.md)。
 
 ## DEB 打包
 
