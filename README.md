@@ -129,12 +129,12 @@ cmake --build build --parallel
 cmake --build build --target package
 ```
 
-生成的安装包位于 `build/` 目录，当前验证生成的文件名为 `whymodem_0.1.0_amd64.deb`。
+生成的安装包位于 `dist/` 目录，当前验证生成的文件名为 `whymodem_0.1.0_amd64.deb`。
 
 安装 deb：
 
 ```bash
-sudo apt install ./build/*.deb
+sudo apt install ./dist/*.deb
 ```
 
 deb 包会安装可执行文件、桌面入口和 512x512 PNG 图标。安装完成后可以在 Ubuntu 应用菜单中搜索 `WhYModem`，也可以启动后固定到 Dock。
