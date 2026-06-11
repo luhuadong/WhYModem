@@ -110,6 +110,7 @@ void Widget::on_comButton_clicked()
 
             ui->comPort->setDisabled(true);
             ui->comBaudRate->setDisabled(true);
+            ui->protocol->setDisabled(true);
             ui->comButton->setText(u8"关闭串口");
 
             ui->transmitBrowse->setEnabled(true);
@@ -138,6 +139,7 @@ void Widget::on_comButton_clicked()
 
         ui->comPort->setEnabled(true);
         ui->comBaudRate->setEnabled(true);
+        ui->protocol->setEnabled(true);
         ui->comButton->setText(u8"打开串口");
 
         ui->transmitBrowse->setDisabled(true);
