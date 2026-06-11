@@ -1,6 +1,6 @@
 # WhYModem
 
-WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，非常小巧易用。程序中涉及到 YMODEM 协议知识，详细介绍见维基百科[YMODEM](https://en.wikipedia.org/wiki/YMODEM)。
+WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，非常小巧易用。程序中涉及到 YMODEM 协议知识，详细介绍见维基百科 [YMODEM](https://en.wikipedia.org/wiki/YMODEM)。
 
 ## 软件架构
 
@@ -152,3 +152,6 @@ cmake --build build --target package
 
 程序可成功编译并启动进入 Qt 事件循环；`timeout` 退出码为 124 属于预期，因为 GUI 程序会持续运行。真实 YMODEM 收发需要连接串口设备后再验证。
 
+## 软件界面
+
+![WhYmodem V0.1.0](./docs/images/WhYmodem-V0.1.0-Linux.png)
