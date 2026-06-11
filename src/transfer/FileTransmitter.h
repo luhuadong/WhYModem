@@ -54,8 +54,8 @@ private:
     Status   status;
     uint64_t fileSize;
     uint64_t fileCount;
-    int firstDataDelayMs;
-    int interPacketDelayMs;
+    int firstDataDelayMs;    // 首包延时
+    int interPacketDelayMs;  // 包间隔
     QByteArray filteredRx;
     QByteArray txEcho;
     int txEchoOffset;

@@ -2,6 +2,8 @@
 #define WIDGET_H
 
 #include <QWidget>
+#include <QByteArray>
+#include <QCheckBox>
 #include <QPlainTextEdit>
 #include "transfer/FileTransmitter.h"
 #include "transfer/FileReceiver.h"
@@ -30,15 +32,18 @@ private slots:
     void receiveStatus(FileReceiver::Status status);
     void readMonitorData();
     void appendRawData(const QByteArray &data);
+    void refreshRxLog();
 
 private:
-    QString formatRawData(const QByteArray &data) const;
+    void renderRawData(const QByteArray &data);
 
     Ui::Widget *ui;
     QSerialPort *serialPort;
     FileTransmitter *fileTransmitter;
     FileReceiver *fileReceiver;
     QPlainTextEdit *rxLog;
+    QCheckBox *rxHexCheckBox;
+    QByteArray rxBuffer;
 
     bool transmitButtonStatus;
     bool receiveButtonStatus;

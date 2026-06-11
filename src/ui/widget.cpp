@@ -3,15 +3,12 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QSerialPortInfo>
-#include <QDateTime>
+#include <QCheckBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QPushButton>
-#include <QSpinBox>
+#include <QTextCursor>
 #include <QVBoxLayout>
-#include <iomanip>
-#include <sstream>
 
 namespace {
 
@@ -33,40 +30,32 @@ Widget::Widget(QWidget *parent) :
     serialPort(new QSerialPort),
     fileTransmitter(new FileTransmitter),
     fileReceiver(new FileReceiver),
-    rxLog(new QPlainTextEdit)
+    rxLog(new QPlainTextEdit),
+    rxHexCheckBox(new QCheckBox(u8"十六进制显示"))
 {
     transmitButtonStatus = false;
     receiveButtonStatus  = false;
 
     ui->setupUi(this);
-    setMinimumSize(700, 520);
-    resize(760, 560);
+    setMinimumSize(760, 620);
+    resize(800, 660);
 
     QGroupBox *rxGroup = new QGroupBox(u8"接收窗口", this);
     QVBoxLayout *rxLayout = new QVBoxLayout(rxGroup);
-    QHBoxLayout *optionLayout = new QHBoxLayout;
-    QLabel *firstDelayLabel = new QLabel(u8"首包延时(ms)：", rxGroup);
-    QSpinBox *firstDelay = new QSpinBox(rxGroup);
-    firstDelay->setObjectName("firstDataDelay");
-    firstDelay->setRange(0, 10000);
-    firstDelay->setValue(500);
-    QLabel *packetDelayLabel = new QLabel(u8"包间隔(ms)：", rxGroup);
-    QSpinBox *packetDelay = new QSpinBox(rxGroup);
-    packetDelay->setObjectName("packetDelay");
-    packetDelay->setRange(0, 10000);
-    packetDelay->setValue(500);
+    QHBoxLayout *toolbarLayout = new QHBoxLayout;
     QPushButton *clearRx = new QPushButton(u8"清空", rxGroup);
-    optionLayout->addWidget(firstDelayLabel);
-    optionLayout->addWidget(firstDelay);
-    optionLayout->addWidget(packetDelayLabel);
-    optionLayout->addWidget(packetDelay);
-    optionLayout->addStretch();
-    optionLayout->addWidget(clearRx);
+    rxGroup->setMinimumHeight(220);
+    rxLayout->setSpacing(8);
+    rxHexCheckBox->setParent(rxGroup);
+    rxHexCheckBox->setChecked(false);
+    toolbarLayout->addStretch();
+    toolbarLayout->addWidget(rxHexCheckBox);
+    toolbarLayout->addWidget(clearRx);
     rxLog->setReadOnly(true);
-    rxLog->setMinimumHeight(140);
+    rxLog->setMinimumHeight(120);
     rxLog->setLineWrapMode(QPlainTextEdit::NoWrap);
-    rxLayout->addLayout(optionLayout);
-    rxLayout->addWidget(rxLog);
+    rxLayout->addWidget(rxLog, 1);
+    rxLayout->addLayout(toolbarLayout);
     ui->verticalLayout_3->addWidget(rxGroup, 1);
 
     QSerialPortInfo serialPortInfo;
@@ -90,7 +79,11 @@ Widget::Widget(QWidget *parent) :
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(serialPort, SIGNAL(readyRead()), this, SLOT(readMonitorData()));
-    connect(clearRx, SIGNAL(clicked()), rxLog, SLOT(clear()));
+    connect(rxHexCheckBox, SIGNAL(toggled(bool)), this, SLOT(refreshRxLog()));
+    connect(clearRx, &QPushButton::clicked, this, [this]() {
+        rxBuffer.clear();
+        rxLog->clear();
+    });
 }
 
 Widget::~Widget()
@@ -191,8 +184,6 @@ void Widget::on_transmitButton_clicked()
         fileTransmitter->setFileName(ui->transmitPath->text());
         fileTransmitter->setPortName(ui->comPort->currentText());
         fileTransmitter->setPortBaudRate(ui->comBaudRate->currentText().toInt());
-        fileTransmitter->setTransferDelays(findChild<QSpinBox *>("firstDataDelay")->value(),
-                                           findChild<QSpinBox *>("packetDelay")->value());
 
         if(fileTransmitter->startTransmit() == true)
         {
@@ -473,27 +464,55 @@ void Widget::appendRawData(const QByteArray &data)
     {
         return;
     }
-    rxLog->appendPlainText(formatRawData(data));
+    rxBuffer.append(data);
+    renderRawData(data);
 }
 
-QString Widget::formatRawData(const QByteArray &data) const
+void Widget::refreshRxLog()
 {
-    std::ostringstream hex;
-    std::string ascii;
-    hex << QDateTime::currentDateTime().toString("HH:mm:ss.zzz").toStdString() << " RX ";
-    hex << std::hex << std::setfill('0');
+    rxLog->clear();
+    renderRawData(rxBuffer);
+}
+
+void Widget::renderRawData(const QByteArray &data)
+{
+    if(data.isEmpty())
+    {
+        return;
+    }
+
+    QTextCursor cursor = rxLog->textCursor();
+    cursor.movePosition(QTextCursor::End);
     for(unsigned char ch : data)
     {
-        hex << std::setw(2) << static_cast<unsigned>(ch) << ' ';
+        if(rxHexCheckBox->isChecked())
+        {
+            cursor.insertText(QString("%1 ").arg(static_cast<unsigned>(ch), 2, 16, QChar('0')).toUpper());
+            if(ch == '\n')
+            {
+                cursor.insertBlock();
+            }
+            continue;
+        }
+
+        if(ch == '\n')
+        {
+            cursor.insertBlock();
+            continue;
+        }
+        if(ch == '\r')
+        {
+            continue;
+        }
         if(ch >= 0x20 && ch <= 0x7e)
         {
-            ascii.push_back(static_cast<char>(ch));
+            cursor.insertText(QString(QChar(ch)));
         }
         else
         {
-            ascii.push_back('.');
+            cursor.insertText(QString("<%1>").arg(static_cast<unsigned>(ch), 2, 16, QChar('0')).toUpper());
         }
     }
-    hex << " | " << ascii;
-    return QString::fromStdString(hex.str());
+    rxLog->setTextCursor(cursor);
+    rxLog->ensureCursorVisible();
 }
