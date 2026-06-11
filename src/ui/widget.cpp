@@ -53,7 +53,8 @@ Widget::Widget(QWidget *parent) :
     toolbarLayout->addWidget(clearRx);
     rxLog->setReadOnly(true);
     rxLog->setMinimumHeight(120);
-    rxLog->setLineWrapMode(QPlainTextEdit::NoWrap);
+    rxLog->setLineWrapMode(QPlainTextEdit::WidgetWidth);
+    rxLog->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     rxLayout->addWidget(rxLog, 1);
     rxLayout->addLayout(toolbarLayout);
     ui->verticalLayout_3->addWidget(rxGroup, 1);
