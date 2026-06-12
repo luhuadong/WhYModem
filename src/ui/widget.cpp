@@ -108,19 +108,6 @@ void Widget::on_comButton_clicked()
             ui->protocol->setDisabled(true);
             ui->refreshButton->setDisabled(true);
             ui->comButton->setText(u8"关闭串口");
-
-            ui->transmitBrowse->setEnabled(true);
-            ui->receiveBrowse->setEnabled(true);
-
-            if(ui->transmitPath->text().isEmpty() != true)
-            {
-                ui->transmitButton->setEnabled(true);
-            }
-
-            if(ui->receivePath->text().isEmpty() != true)
-            {
-                ui->receiveButton->setEnabled(true);
-            }
         }
         else
         {
@@ -138,12 +125,6 @@ void Widget::on_comButton_clicked()
         ui->protocol->setEnabled(true);
         ui->refreshButton->setEnabled(true);
         ui->comButton->setText(u8"打开串口");
-
-        ui->transmitBrowse->setDisabled(true);
-        ui->transmitButton->setDisabled(true);
-
-        ui->receiveBrowse->setDisabled(true);
-        ui->receiveButton->setDisabled(true);
     }
 }
 

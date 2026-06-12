@@ -292,7 +292,7 @@ QProgressBar {
         <item>
          <widget class="QPushButton" name="transmitBrowse">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="text">
            <string>浏览...</string>
@@ -378,7 +378,7 @@ QProgressBar {
         <item>
          <widget class="QPushButton" name="receiveBrowse">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="text">
            <string>浏览...</string>
