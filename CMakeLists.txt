@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(WhYModem VERSION 0.1.0 LANGUAGES CXX)
+project(WhYModem VERSION 0.2.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
@@ -19,12 +19,21 @@ set(PROJECT_SOURCES
     src/ui/widget.cpp
     src/ui/widget.h
     src/ui/widget.ui
+    src/protocol/ITransferProtocol.h
+    src/protocol/xmodem/XmodemProtocol.cpp
+    src/protocol/xmodem/XmodemProtocol.h
     src/protocol/ymodem/Ymodem.cpp
     src/protocol/ymodem/Ymodem.h
+    src/protocol/ymodem/YmodemProtocol.cpp
+    src/protocol/ymodem/YmodemProtocol.h
+    src/protocol/zmodem/ZmodemProtocol.cpp
+    src/protocol/zmodem/ZmodemProtocol.h
     src/transfer/FileReceiver.cpp
     src/transfer/FileReceiver.h
     src/transfer/FileTransmitter.cpp
     src/transfer/FileTransmitter.h
+    src/transfer/ProtocolFactory.cpp
+    src/transfer/ProtocolFactory.h
     resources/resources.qrc
 )
 

@@ -1,4 +1,5 @@
 #include "FileReceiver.h"
+#include <QDateTime>
 
 #define READ_TIME_OUT   (10)
 #define WRITE_TIME_OUT  (100)
@@ -8,12 +9,13 @@ FileReceiver::FileReceiver(QObject *parent) :
     file(new QFile),
     readTimer(new QTimer),
     writeTimer(new QTimer),
-    serialPort(new QSerialPort)
+    serialPort(new QSerialPort),
+    protocolKind(ProtocolKind::Ymodem),
+    progress(0),
+    status(ITransferProtocol::StatusEstablish),
+    fileSize(0),
+    fileCount(0)
 {
-    setTimeDivide(499);
-    setTimeMax(5);
-    setErrorMax(999);
-
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
     serialPort->setDataBits(QSerialPort::Data8);
@@ -23,6 +25,7 @@ FileReceiver::FileReceiver(QObject *parent) :
 
     connect(readTimer, SIGNAL(timeout()), this, SLOT(readTimeOut()));
     connect(writeTimer, SIGNAL(timeout()), this, SLOT(writeTimeOut()));
+    configureProtocol();
 }
 
 FileReceiver::~FileReceiver()
@@ -31,6 +34,17 @@ FileReceiver::~FileReceiver()
     delete readTimer;
     delete writeTimer;
     delete serialPort;
+}
+
+void FileReceiver::setProtocolKind(ProtocolKind kind)
+{
+    if(protocolKind == kind && protocol)
+    {
+        return;
+    }
+
+    protocolKind = kind;
+    configureProtocol();
 }
 
 void FileReceiver::setFilePath(const QString &path)
@@ -51,7 +65,9 @@ void FileReceiver::setPortBaudRate(qint32 baudrate)
 bool FileReceiver::startReceive()
 {
     progress = 0;
-    status   = StatusEstablish;
+    status   = ITransferProtocol::StatusEstablish;
+    fileSize = 0;
+    fileCount = 0;
 
     if(serialPort->open(QSerialPort::ReadWrite) == true)
     {
@@ -68,8 +84,11 @@ bool FileReceiver::startReceive()
 void FileReceiver::stopReceive()
 {
     file->close();
-    abort();
-    status = StatusAbort;
+    if(protocol)
+    {
+        protocol->abort();
+    }
+    status = ITransferProtocol::StatusAbort;
     writeTimer->start(WRITE_TIME_OUT);
 }
 
@@ -78,7 +97,7 @@ int FileReceiver::getReceiveProgress()
     return progress;
 }
 
-Ymodem::Status FileReceiver::getReceiveStatus()
+FileReceiver::Status FileReceiver::getReceiveStatus()
 {
     return status;
 }
@@ -87,9 +106,12 @@ void FileReceiver::readTimeOut()
 {
     readTimer->stop();
 
-    receive();
+    if(protocol)
+    {
+        protocol->receive();
+    }
 
-    if((status == StatusEstablish) || (status == StatusTransmit))
+    if((status == ITransferProtocol::StatusEstablish) || (status == ITransferProtocol::StatusTransmit))
     {
         readTimer->start(READ_TIME_OUT);
     }
@@ -102,13 +124,13 @@ void FileReceiver::writeTimeOut()
     receiveStatus(status);
 }
 
-Ymodem::Code FileReceiver::callback(Status status, uint8_t *buff, uint32_t *len)
+ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, uint32_t *len)
 {
     switch(status)
     {
-        case StatusEstablish:
+        case ITransferProtocol::StatusEstablish:
         {
-            if(buff[0] != 0)
+            if(buff != 0 && buff[0] != 0)
             {
                 int  i         =  0;
                 char name[128] = {0};
@@ -136,96 +158,118 @@ Ymodem::Code FileReceiver::callback(Status status, uint8_t *buff, uint32_t *len)
 
                 if(file->open(QFile::WriteOnly) == true)
                 {
-                    FileReceiver::status = StatusEstablish;
+                    FileReceiver::status = ITransferProtocol::StatusEstablish;
 
-                    receiveStatus(StatusEstablish);
+                    receiveStatus(ITransferProtocol::StatusEstablish);
 
-                    return CodeAck;
+                    return ITransferProtocol::ReplyAck;
                 }
                 else
                 {
-                    FileReceiver::status = StatusError;
+                    FileReceiver::status = ITransferProtocol::StatusError;
 
                     writeTimer->start(WRITE_TIME_OUT);
 
-                    return CodeCan;
+                    return ITransferProtocol::ReplyCancel;
                 }
             }
             else
             {
-                FileReceiver::status = StatusError;
+                fileName = ProtocolFactory::displayName(protocolKind).toLower() + "-" +
+                           QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".bin";
+                fileSize = 0;
+                fileCount = 0;
+                file->setFileName(filePath + fileName);
 
-                writeTimer->start(WRITE_TIME_OUT);
+                if(file->open(QFile::WriteOnly) == true)
+                {
+                    FileReceiver::status = ITransferProtocol::StatusEstablish;
 
-                return CodeCan;
+                    receiveStatus(ITransferProtocol::StatusEstablish);
+
+                    return ITransferProtocol::ReplyAck;
+                }
+                else
+                {
+                    FileReceiver::status = ITransferProtocol::StatusError;
+
+                    writeTimer->start(WRITE_TIME_OUT);
+
+                    return ITransferProtocol::ReplyCancel;
+                }
             }
         }
 
-        case StatusTransmit:
+        case ITransferProtocol::StatusTransmit:
         {
-            if((fileSize - fileCount) > *len)
-            {
-                file->write((char *)buff, *len);
-
-                fileCount += *len;
-            }
-            else
+            if(fileSize > 0 && (fileSize - fileCount) <= *len)
             {
                 file->write((char *)buff, fileSize - fileCount);
 
                 fileCount += fileSize - fileCount;
             }
+            else
+            {
+                file->write((char *)buff, *len);
 
-            progress = (int)(fileCount * 100 / fileSize);
+                fileCount += *len;
+            }
 
-            FileReceiver::status = StatusTransmit;
+            if(fileSize > 0)
+            {
+                progress = (int)(fileCount * 100 / fileSize);
+            }
+
+            FileReceiver::status = ITransferProtocol::StatusTransmit;
 
             receiveProgress(progress);
-            receiveStatus(StatusTransmit);
+            receiveStatus(ITransferProtocol::StatusTransmit);
 
-            return CodeAck;
+            return ITransferProtocol::ReplyAck;
         }
 
-        case StatusFinish:
+        case ITransferProtocol::StatusFinish:
+        {
+            file->close();
+            progress = 100;
+
+            FileReceiver::status = ITransferProtocol::StatusFinish;
+            receiveProgress(progress);
+
+            writeTimer->start(WRITE_TIME_OUT);
+
+            return ITransferProtocol::ReplyAck;
+        }
+
+        case ITransferProtocol::StatusAbort:
         {
             file->close();
 
-            FileReceiver::status = StatusFinish;
+            FileReceiver::status = ITransferProtocol::StatusAbort;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeAck;
+            return ITransferProtocol::ReplyCancel;
         }
 
-        case StatusAbort:
+        case ITransferProtocol::StatusTimeout:
         {
-            file->close();
-
-            FileReceiver::status = StatusAbort;
+            FileReceiver::status = ITransferProtocol::StatusTimeout;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeCan;
-        }
-
-        case StatusTimeout:
-        {
-            FileReceiver::status = StatusTimeout;
-
-            writeTimer->start(WRITE_TIME_OUT);
-
-            return CodeCan;
+            return ITransferProtocol::ReplyCancel;
         }
 
         default:
         {
             file->close();
 
-            FileReceiver::status = StatusError;
+            FileReceiver::status = ITransferProtocol::StatusError;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeCan;
+            return ITransferProtocol::ReplyCancel;
         }
     }
 }
@@ -251,4 +295,19 @@ uint32_t FileReceiver::write(uint8_t *buff, uint32_t len)
     serialPort->waitForBytesWritten(3000);
     serialPort->flush();
     return static_cast<uint32_t>(n);
+}
+
+void FileReceiver::configureProtocol()
+{
+    protocol = ProtocolFactory::create(protocolKind);
+    protocol->setProtocolCallback([this](Status status, uint8_t *buff, uint32_t *len) {
+        return callback(status, buff, len);
+    });
+    protocol->setIoCallbacks(
+        [this](uint8_t *buff, uint32_t len) {
+            return read(buff, len);
+        },
+        [this](uint8_t *buff, uint32_t len) {
+            return write(buff, len);
+        });
 }

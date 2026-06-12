@@ -1,5 +1,11 @@
 # Change log
 
+## V0.2.0
+
+- 重构协议/传输层架构，引入 `ITransferProtocol` 和 `ProtocolFactory`
+- 新增 Xmodem 协议状态机，支持 CRC/checksum 握手、重复包确认、连续 CAN 中止和 XMODEM-1K 数据包
+- 新增 Zmodem 协议类骨架，后续补全完整 ZMODEM 帧流程
+- 文件收发层改为组合协议对象，不再继承 Ymodem
 
 
 ## V0.1.0

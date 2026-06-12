@@ -82,14 +82,24 @@ QProgressBar {
          <string>Ymodem</string>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <property name="maxVisibleItems">
          <number>8</number>
         </property>
         <item>
          <property name="text">
+          <string>Xmodem</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
           <string>Ymodem</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Zmodem</string>
          </property>
         </item>
        </widget>

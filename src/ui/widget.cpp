@@ -73,10 +73,10 @@ Widget::Widget(QWidget *parent) :
     serialPort->setParity(QSerialPort::NoParity);
     serialPort->setFlowControl(QSerialPort::NoFlowControl);
 
-    connect(fileTransmitter, SIGNAL(transmitProgress(int)), this, SLOT(transmitProgress(int)));
-    connect(fileReceiver, SIGNAL(receiveProgress(int)), this, SLOT(receiveProgress(int)));
-    connect(fileTransmitter, SIGNAL(transmitStatus(FileTransmitter::Status)), this, SLOT(transmitStatus(FileTransmitter::Status)));
-    connect(fileReceiver, SIGNAL(receiveStatus(FileReceiver::Status)), this, SLOT(receiveStatus(FileReceiver::Status)));
+    connect(fileTransmitter, &FileTransmitter::transmitProgress, this, &Widget::transmitProgress);
+    connect(fileReceiver, &FileReceiver::receiveProgress, this, &Widget::receiveProgress);
+    connect(fileTransmitter, &FileTransmitter::transmitStatus, this, &Widget::transmitStatus);
+    connect(fileReceiver, &FileReceiver::receiveStatus, this, &Widget::receiveStatus);
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(serialPort, SIGNAL(readyRead()), this, SLOT(readMonitorData()));
@@ -184,6 +184,7 @@ void Widget::on_transmitButton_clicked()
     {
         serialPort->close();
 
+        fileTransmitter->setProtocolKind(ProtocolFactory::fromName(ui->protocol->currentText()));
         fileTransmitter->setFileName(ui->transmitPath->text());
         fileTransmitter->setPortName(ui->comPort->currentText());
         fileTransmitter->setPortBaudRate(ui->comBaudRate->currentText().toInt());
@@ -218,6 +219,7 @@ void Widget::on_receiveButton_clicked()
     {
         serialPort->close();
 
+        fileReceiver->setProtocolKind(ProtocolFactory::fromName(ui->protocol->currentText()));
         fileReceiver->setFilePath(ui->receivePath->text());
         fileReceiver->setPortName(ui->comPort->currentText());
         fileReceiver->setPortBaudRate(ui->comBaudRate->currentText().toInt());
@@ -256,21 +258,21 @@ void Widget::receiveProgress(int progress)
     ui->receiveProgress->setValue(progress);
 }
 
-void Widget::transmitStatus(Ymodem::Status status)
+void Widget::transmitStatus(FileTransmitter::Status status)
 {
     switch(status)
     {
-        case FileTransmitter::StatusEstablish:
+        case ITransferProtocol::StatusEstablish:
         {
             break;
         }
 
-        case FileTransmitter::StatusTransmit:
+        case ITransferProtocol::StatusTransmit:
         {
             break;
         }
 
-        case FileTransmitter::StatusFinish:
+        case ITransferProtocol::StatusFinish:
         {
             transmitButtonStatus = false;
 
@@ -291,7 +293,7 @@ void Widget::transmitStatus(Ymodem::Status status)
             break;
         }
 
-        case FileTransmitter::StatusAbort:
+        case ITransferProtocol::StatusAbort:
         {
             transmitButtonStatus = false;
 
@@ -312,7 +314,7 @@ void Widget::transmitStatus(Ymodem::Status status)
             break;
         }
 
-        case FileTransmitter::StatusTimeout:
+        case ITransferProtocol::StatusTimeout:
         {
             transmitButtonStatus = false;
 
@@ -358,17 +360,17 @@ void Widget::receiveStatus(FileReceiver::Status status)
 {
     switch(status)
     {
-        case FileReceiver::StatusEstablish:
+        case ITransferProtocol::StatusEstablish:
         {
             break;
         }
 
-        case FileReceiver::StatusTransmit:
+        case ITransferProtocol::StatusTransmit:
         {
             break;
         }
 
-        case FileReceiver::StatusFinish:
+        case ITransferProtocol::StatusFinish:
         {
             receiveButtonStatus = false;
 
@@ -389,7 +391,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             break;
         }
 
-        case FileReceiver::StatusAbort:
+        case ITransferProtocol::StatusAbort:
         {
             receiveButtonStatus = false;
 
@@ -410,7 +412,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             break;
         }
 
-        case FileReceiver::StatusTimeout:
+        case ITransferProtocol::StatusTimeout:
         {
             receiveButtonStatus = false;
 

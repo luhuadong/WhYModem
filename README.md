@@ -8,8 +8,11 @@ WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，
 
 * `src/main.cpp`：创建 `QApplication`、设置应用图标并显示主窗口。
 * `src/ui/`：主界面，负责串口选择、波特率选择、文件/目录选择、发送/接收按钮状态和进度条。
-* `src/protocol/ymodem/`：YMODEM 协议状态机，不依赖 Qt 串口或文件 API。
-* `src/transfer/`：串口文件收发适配层，将协议读写回调连接到 `QFile` 和 `QSerialPort`。当前实现使用 YMODEM，文件名和类名不绑定协议名前缀，方便后续扩展 XMODEM/ZMODEM。
+* `src/protocol/ITransferProtocol.h`：传输协议适配接口，负责把协议状态机接入通用文件收发层。
+* `src/protocol/ymodem/`：YMODEM 协议状态机和 `YmodemProtocol` 适配器；原始 `Ymodem` 状态机保持独立。
+* `src/protocol/xmodem/`：XMODEM 基础状态机实现。
+* `src/protocol/zmodem/`：ZMODEM 协议类骨架；完整 ZMODEM 帧流程仍需继续实现。
+* `src/transfer/`：串口文件收发适配层，将协议读写回调连接到 `QFile` 和 `QSerialPort`，并通过 `ProtocolFactory` 创建具体协议。
 * `resources/`：应用图标和 Qt 资源文件。
 * `packaging/`：打包脚本与 Linux 桌面入口文件。
 * `docs/`：平台相关的构建与打包文档。

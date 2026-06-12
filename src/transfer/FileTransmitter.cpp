@@ -1,4 +1,5 @@
 #include "FileTransmitter.h"
+#include "protocol/ymodem/Ymodem.h"
 #include <QFileInfo>
 #include <QThread>
 #include <algorithm>
@@ -13,14 +14,15 @@ FileTransmitter::FileTransmitter(QObject *parent) :
     readTimer(new QTimer),
     writeTimer(new QTimer),
     serialPort(new QSerialPort),
+    protocolKind(ProtocolKind::Ymodem),
+    progress(0),
+    status(ITransferProtocol::StatusEstablish),
+    fileSize(0),
+    fileCount(0),
     firstDataDelayMs(500),
     interPacketDelayMs(500),
     txEchoOffset(0)
 {
-    setTimeDivide(499);
-    setTimeMax(5);
-    setErrorMax(999);
-
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
     serialPort->setDataBits(QSerialPort::Data8);
@@ -30,6 +32,7 @@ FileTransmitter::FileTransmitter(QObject *parent) :
 
     connect(readTimer, SIGNAL(timeout()), this, SLOT(readTimeOut()));
     connect(writeTimer, SIGNAL(timeout()), this, SLOT(writeTimeOut()));
+    configureProtocol();
 }
 
 FileTransmitter::~FileTransmitter()
@@ -38,6 +41,17 @@ FileTransmitter::~FileTransmitter()
     delete readTimer;
     delete writeTimer;
     delete serialPort;
+}
+
+void FileTransmitter::setProtocolKind(ProtocolKind kind)
+{
+    if(protocolKind == kind && protocol)
+    {
+        return;
+    }
+
+    protocolKind = kind;
+    configureProtocol();
 }
 
 void FileTransmitter::setFileName(const QString &name)
@@ -64,7 +78,7 @@ void FileTransmitter::setTransferDelays(int firstDataDelayMs, int interPacketDel
 bool FileTransmitter::startTransmit()
 {
     progress = 0;
-    status   = StatusEstablish;
+    status   = ITransferProtocol::StatusEstablish;
     filteredRx.clear();
     txEcho.clear();
     txEchoOffset = 0;
@@ -84,8 +98,11 @@ bool FileTransmitter::startTransmit()
 void FileTransmitter::stopTransmit()
 {
     file->close();
-    abort();
-    status = StatusAbort;
+    if(protocol)
+    {
+        protocol->abort();
+    }
+    status = ITransferProtocol::StatusAbort;
     writeTimer->start(WRITE_TIME_OUT);
 }
 
@@ -94,7 +111,7 @@ int FileTransmitter::getTransmitProgress()
     return progress;
 }
 
-Ymodem::Status FileTransmitter::getTransmitStatus()
+FileTransmitter::Status FileTransmitter::getTransmitStatus()
 {
     return status;
 }
@@ -103,9 +120,12 @@ void FileTransmitter::readTimeOut()
 {
     readTimer->stop();
 
-    transmit();
+    if(protocol)
+    {
+        protocol->transmit();
+    }
 
-    if((status == StatusEstablish) || (status == StatusTransmit))
+    if((status == ITransferProtocol::StatusEstablish) || (status == ITransferProtocol::StatusTransmit))
     {
         readTimer->start(READ_TIME_OUT);
     }
@@ -118,11 +138,11 @@ void FileTransmitter::writeTimeOut()
     transmitStatus(status);
 }
 
-Ymodem::Code FileTransmitter::callback(Status status, uint8_t *buff, uint32_t *len)
+ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff, uint32_t *len)
 {
     switch(status)
     {
-        case StatusEstablish:
+        case ITransferProtocol::StatusEstablish:
         {
             if(file->open(QFile::ReadOnly) == true)
             {
@@ -131,103 +151,109 @@ Ymodem::Code FileTransmitter::callback(Status status, uint8_t *buff, uint32_t *l
                 fileSize  = fileInfo.size();
                 fileCount = 0;
 
-                strcpy((char *)buff, fileInfo.fileName().toLocal8Bit().data());
-                strcpy((char *)buff + fileInfo.fileName().toLocal8Bit().size() + 1, QByteArray::number(fileInfo.size()).data());
-
-                *len = YMODEM_PACKET_SIZE;
-
-                FileTransmitter::status = StatusEstablish;
-
-                transmitStatus(StatusEstablish);
-
-                return CodeAck;
-            }
-            else
-            {
-                FileTransmitter::status = StatusError;
-
-                writeTimer->start(WRITE_TIME_OUT);
-
-                return CodeCan;
-            }
-        }
-
-        case StatusTransmit:
-        {
-            if(fileSize != fileCount)
-            {
-                if((fileSize - fileCount) > YMODEM_PACKET_SIZE)
+                if(buff != 0 && len != 0)
                 {
-                    fileCount += file->read((char *)buff, YMODEM_PACKET_1K_SIZE);
-
-                    *len = YMODEM_PACKET_1K_SIZE;
-                }
-                else
-                {
-                    fileCount += file->read((char *)buff, YMODEM_PACKET_SIZE);
+                    strcpy((char *)buff, fileInfo.fileName().toLocal8Bit().data());
+                    strcpy((char *)buff + fileInfo.fileName().toLocal8Bit().size() + 1, QByteArray::number(fileInfo.size()).data());
 
                     *len = YMODEM_PACKET_SIZE;
                 }
 
-                progress = (int)(fileCount * 100 / fileSize);
+                FileTransmitter::status = ITransferProtocol::StatusEstablish;
 
-                FileTransmitter::status = StatusTransmit;
+                transmitStatus(ITransferProtocol::StatusEstablish);
 
-                transmitProgress(progress);
-                transmitStatus(StatusTransmit);
-
-                return CodeAck;
+                return ITransferProtocol::ReplyAck;
             }
             else
             {
-                FileTransmitter::status = StatusTransmit;
+                FileTransmitter::status = ITransferProtocol::StatusError;
 
-                transmitStatus(StatusTransmit);
+                writeTimer->start(WRITE_TIME_OUT);
 
-                return CodeEot;
+                return ITransferProtocol::ReplyCancel;
             }
         }
 
-        case StatusFinish:
+        case ITransferProtocol::StatusTransmit:
+        {
+            if(fileSize != fileCount)
+            {
+                uint32_t requestSize = (len != 0 && *len > 0) ? *len : 0;
+                if(requestSize == 0)
+                {
+                    requestSize = (fileSize - fileCount) > YMODEM_PACKET_SIZE ? YMODEM_PACKET_1K_SIZE : YMODEM_PACKET_SIZE;
+                }
+
+                const qint64 readCount = file->read((char *)buff, requestSize);
+                if(readCount <= 0)
+                {
+                    *len = 0;
+                    return ITransferProtocol::ReplyEot;
+                }
+
+                fileCount += static_cast<uint64_t>(readCount);
+                *len = static_cast<uint32_t>(readCount);
+
+                progress = (int)(fileCount * 100 / fileSize);
+
+                FileTransmitter::status = ITransferProtocol::StatusTransmit;
+
+                transmitProgress(progress);
+                transmitStatus(ITransferProtocol::StatusTransmit);
+
+                return ITransferProtocol::ReplyAck;
+            }
+            else
+            {
+                FileTransmitter::status = ITransferProtocol::StatusTransmit;
+
+                transmitStatus(ITransferProtocol::StatusTransmit);
+
+                return ITransferProtocol::ReplyEot;
+            }
+        }
+
+        case ITransferProtocol::StatusFinish:
         {
             file->close();
 
-            FileTransmitter::status = StatusFinish;
+            FileTransmitter::status = ITransferProtocol::StatusFinish;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeAck;
+            return ITransferProtocol::ReplyAck;
         }
 
-        case StatusAbort:
+        case ITransferProtocol::StatusAbort:
         {
             file->close();
 
-            FileTransmitter::status = StatusAbort;
+            FileTransmitter::status = ITransferProtocol::StatusAbort;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeCan;
+            return ITransferProtocol::ReplyCancel;
         }
 
-        case StatusTimeout:
+        case ITransferProtocol::StatusTimeout:
         {
-            FileTransmitter::status = StatusTimeout;
+            FileTransmitter::status = ITransferProtocol::StatusTimeout;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeCan;
+            return ITransferProtocol::ReplyCancel;
         }
 
         default:
         {
             file->close();
 
-            FileTransmitter::status = StatusError;
+            FileTransmitter::status = ITransferProtocol::StatusError;
 
             writeTimer->start(WRITE_TIME_OUT);
 
-            return CodeCan;
+            return ITransferProtocol::ReplyCancel;
         }
     }
 }
@@ -326,7 +352,7 @@ void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
         return;
     }
 
-    const bool ymodemPacket = (buff[0] == CodeSoh) || (buff[0] == CodeStx);
+    const bool ymodemPacket = (buff[0] == 0x01) || (buff[0] == 0x02);
     if(!ymodemPacket)
     {
         return;
@@ -340,4 +366,19 @@ void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
     {
         QThread::msleep(static_cast<unsigned long>(interPacketDelayMs));
     }
+}
+
+void FileTransmitter::configureProtocol()
+{
+    protocol = ProtocolFactory::create(protocolKind);
+    protocol->setProtocolCallback([this](Status status, uint8_t *buff, uint32_t *len) {
+        return callback(status, buff, len);
+    });
+    protocol->setIoCallbacks(
+        [this](uint8_t *buff, uint32_t len) {
+            return read(buff, len);
+        },
+        [this](uint8_t *buff, uint32_t len) {
+            return write(buff, len);
+        });
 }
