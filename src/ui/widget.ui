@@ -308,6 +308,19 @@ QProgressBar {
         </property>
        </spacer>
       </item>
+      <item>
+       <widget class="QLabel" name="versionLabel">
+        <property name="styleSheet">
+         <string notr="true">color: #666666;</string>
+        </property>
+        <property name="text">
+         <string>V0.0.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
 	     </layout>
 	    </widget>
    </item>

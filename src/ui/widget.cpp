@@ -12,6 +12,10 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#ifndef WHYMODEM_VERSION
+#define WHYMODEM_VERSION "dev"
+#endif
+
 namespace {
 
 const int MaxRxLogLines = 500;
@@ -53,6 +57,7 @@ Widget::Widget(QWidget *parent) :
     receiveButtonStatus  = false;
 
     ui->setupUi(this);
+    ui->versionLabel->setText(QString("V%1").arg(WHYMODEM_VERSION));
     setMinimumSize(860, 500);
     resize(900, 560);
 

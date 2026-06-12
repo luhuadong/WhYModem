@@ -57,6 +57,11 @@ target_include_directories(WhYModem
         ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem/util
 )
 
+target_compile_definitions(WhYModem
+    PRIVATE
+        WHYMODEM_VERSION="${PROJECT_VERSION}"
+)
+
 target_link_libraries(WhYModem
     PRIVATE
         Qt${QT_VERSION_MAJOR}::Widgets
