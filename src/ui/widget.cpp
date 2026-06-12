@@ -37,14 +37,15 @@ Widget::Widget(QWidget *parent) :
     receiveButtonStatus  = false;
 
     ui->setupUi(this);
-    setMinimumSize(760, 620);
-    resize(800, 660);
+    setMinimumSize(860, 500);
+    resize(900, 560);
 
     QGroupBox *rxGroup = new QGroupBox(u8"接收窗口", this);
     QVBoxLayout *rxLayout = new QVBoxLayout(rxGroup);
     QHBoxLayout *toolbarLayout = new QHBoxLayout;
     QPushButton *clearRx = new QPushButton(u8"清空", rxGroup);
-    rxGroup->setMinimumHeight(220);
+    rxGroup->setMinimumHeight(135);
+    rxGroup->setMaximumHeight(300);
     rxLayout->setSpacing(8);
     rxHexCheckBox->setParent(rxGroup);
     rxHexCheckBox->setChecked(false);
@@ -52,12 +53,12 @@ Widget::Widget(QWidget *parent) :
     toolbarLayout->addWidget(rxHexCheckBox);
     toolbarLayout->addWidget(clearRx);
     rxLog->setReadOnly(true);
-    rxLog->setMinimumHeight(120);
+    rxLog->setMinimumHeight(68);
     rxLog->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     rxLog->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     rxLayout->addWidget(rxLog, 1);
     rxLayout->addLayout(toolbarLayout);
-    ui->verticalLayout_3->addWidget(rxGroup, 1);
+    ui->verticalLayout_3->addWidget(rxGroup);
 
     refreshSerialPorts();
 
