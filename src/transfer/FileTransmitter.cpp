@@ -214,10 +214,14 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
 
             if(fileSize != fileCount)
             {
-                uint32_t requestSize = (len != 0 && *len > 0) ? *len : 0;
-                if(requestSize == 0)
+                uint32_t requestSize = 0;
+                if(protocolKind == ProtocolKind::Ymodem)
                 {
                     requestSize = (fileSize - fileCount) > YMODEM_PACKET_SIZE ? YMODEM_PACKET_1K_SIZE : YMODEM_PACKET_SIZE;
+                }
+                else
+                {
+                    requestSize = (len != 0 && *len > 0) ? *len : YMODEM_PACKET_SIZE;
                 }
 
                 const qint64 readCount = file->read((char *)buff, requestSize);
@@ -228,7 +232,7 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
                 }
 
                 fileCount += static_cast<uint64_t>(readCount);
-                *len = static_cast<uint32_t>(readCount);
+                *len = protocolKind == ProtocolKind::Ymodem ? requestSize : static_cast<uint32_t>(readCount);
 
                 progress = (int)(fileCount * 100 / fileSize);
 
