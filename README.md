@@ -163,4 +163,10 @@ cmake --build build --target package
 
 ## 软件界面
 
-![WhYmodem V0.1.0](./docs/images/WhYmodem-V0.1.0-Linux.png)
+Linux 版本：
+
+![WhYmodem Linux V0.2.0](./docs/images/WhYmodem-V0.2.0-Linux.png)
+
+Windows 版本：
+
+![WhYmodem Windows V0.2.0](./docs/images/WhYmodem-V0.2.0-Windows.png)
