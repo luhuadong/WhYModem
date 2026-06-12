@@ -8,9 +8,23 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QTextCursor>
+#include <QTextDocument>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace {
+
+const int MaxRxLogLines = 500;
+const int MaxRxLineBytes = 16 * 1024;
+const int MaxPendingRxRenderBytes = 8 * 1024;
+const int RxRenderIntervalMs = 30;
+
+void AppendHexByte(QString &text, unsigned char ch)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    text.append(QLatin1Char(digits[(ch >> 4) & 0x0f]));
+    text.append(QLatin1Char(digits[ch & 0x0f]));
+}
 
 void ShowMessage(QWidget *parent, const QString &title, const QString &text, QMessageBox::Icon icon)
 {
@@ -31,7 +45,9 @@ Widget::Widget(QWidget *parent) :
     fileTransmitter(new FileTransmitter),
     fileReceiver(new FileReceiver),
     rxLog(new QPlainTextEdit),
-    rxHexCheckBox(new QCheckBox(u8"十六进制显示"))
+    rxHexCheckBox(new QCheckBox(u8"十六进制显示")),
+    rxRenderTimer(new QTimer(this)),
+    rxPaused(false)
 {
     transmitButtonStatus = false;
     receiveButtonStatus  = false;
@@ -43,17 +59,23 @@ Widget::Widget(QWidget *parent) :
     QGroupBox *rxGroup = new QGroupBox(u8"接收窗口", this);
     QVBoxLayout *rxLayout = new QVBoxLayout(rxGroup);
     QHBoxLayout *toolbarLayout = new QHBoxLayout;
+    QPushButton *pauseRx = new QPushButton(u8"暂停", rxGroup);
     QPushButton *clearRx = new QPushButton(u8"清空", rxGroup);
     rxGroup->setMinimumHeight(135);
     rxGroup->setMaximumHeight(300);
     rxLayout->setSpacing(8);
+    currentRxLine.reserve(MaxRxLineBytes);
+    pendingRxRender.reserve(MaxPendingRxRenderBytes);
     rxHexCheckBox->setParent(rxGroup);
     rxHexCheckBox->setChecked(false);
     toolbarLayout->addStretch();
     toolbarLayout->addWidget(rxHexCheckBox);
+    toolbarLayout->addWidget(pauseRx);
     toolbarLayout->addWidget(clearRx);
     rxLog->setReadOnly(true);
+    rxLog->setUndoRedoEnabled(false);
     rxLog->setMinimumHeight(68);
+    rxLog->document()->setMaximumBlockCount(MaxRxLogLines);
     rxLog->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     rxLog->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     rxLayout->addWidget(rxLog, 1);
@@ -76,9 +98,30 @@ Widget::Widget(QWidget *parent) :
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(serialPort, SIGNAL(readyRead()), this, SLOT(readMonitorData()));
+    rxRenderTimer->setSingleShot(true);
+    connect(rxRenderTimer, SIGNAL(timeout()), this, SLOT(flushRxRender()));
     connect(rxHexCheckBox, SIGNAL(toggled(bool)), this, SLOT(refreshRxLog()));
+    connect(pauseRx, &QPushButton::clicked, this, [this, pauseRx]() {
+        rxPaused = !rxPaused;
+        pauseRx->setText(rxPaused ? u8"继续" : u8"暂停");
+        if(rxPaused)
+        {
+            rxRenderTimer->stop();
+            pendingRxRender.clear();
+            return;
+        }
+        if(!rxPaused)
+        {
+            renderRxCache();
+        }
+    });
     connect(clearRx, &QPushButton::clicked, this, [this]() {
-        rxBuffer.clear();
+        rxLines.clear();
+        currentRxLine.clear();
+        currentRxLine.reserve(MaxRxLineBytes);
+        pendingRxRender.clear();
+        pendingRxRender.reserve(MaxPendingRxRenderBytes);
+        rxRenderTimer->stop();
         rxLog->clear();
     });
 }
@@ -463,14 +506,51 @@ void Widget::appendRawData(const QByteArray &data)
     {
         return;
     }
-    rxBuffer.append(data);
-    renderRawData(data);
+
+    const bool segmented = appendToRxLineCache(data);
+    if(rxPaused)
+    {
+        return;
+    }
+
+    if(segmented)
+    {
+        pendingRxRender.clear();
+        rxRenderTimer->stop();
+        renderRxCache();
+        return;
+    }
+
+    pendingRxRender.append(data);
+    if(pendingRxRender.size() >= MaxPendingRxRenderBytes)
+    {
+        flushRxRender();
+        return;
+    }
+
+    if(!rxRenderTimer->isActive())
+    {
+        rxRenderTimer->start(RxRenderIntervalMs);
+    }
 }
 
 void Widget::refreshRxLog()
 {
-    rxLog->clear();
-    renderRawData(rxBuffer);
+    pendingRxRender.clear();
+    rxRenderTimer->stop();
+    renderRxCache();
+}
+
+void Widget::flushRxRender()
+{
+    if(rxPaused || pendingRxRender.isEmpty())
+    {
+        return;
+    }
+
+    const QByteArray data = pendingRxRender;
+    pendingRxRender.clear();
+    renderRawData(data);
 }
 
 void Widget::refreshSerialPorts()
@@ -499,6 +579,54 @@ void Widget::refreshSerialPorts()
     ui->comPort->blockSignals(false);
 }
 
+bool Widget::appendToRxLineCache(const QByteArray &data)
+{
+    bool segmented = false;
+
+    for(char ch : data)
+    {
+        currentRxLine.append(ch);
+
+        if(ch == '\n')
+        {
+            rxLines.append(currentRxLine);
+            currentRxLine.clear();
+            trimRxLineCache();
+            continue;
+        }
+
+        if(currentRxLine.size() >= MaxRxLineBytes)
+        {
+            currentRxLine.append('\n');
+            rxLines.append(currentRxLine);
+            currentRxLine.clear();
+            trimRxLineCache();
+            segmented = true;
+        }
+    }
+
+    return segmented;
+}
+
+void Widget::trimRxLineCache()
+{
+    const int overflow = rxLines.size() - MaxRxLogLines;
+    if(overflow > 0)
+    {
+        rxLines.erase(rxLines.begin(), rxLines.begin() + overflow);
+    }
+}
+
+void Widget::renderRxCache()
+{
+    rxLog->clear();
+    for(const QByteArray &line : rxLines)
+    {
+        renderRawData(line);
+    }
+    renderRawData(currentRxLine);
+}
+
 void Widget::renderRawData(const QByteArray &data)
 {
     if(data.isEmpty())
@@ -506,23 +634,24 @@ void Widget::renderRawData(const QByteArray &data)
         return;
     }
 
-    QTextCursor cursor = rxLog->textCursor();
-    cursor.movePosition(QTextCursor::End);
+    QString text;
+    text.reserve(rxHexCheckBox->isChecked() ? data.size() * 3 : data.size());
     for(unsigned char ch : data)
     {
         if(rxHexCheckBox->isChecked())
         {
-            cursor.insertText(QString("%1 ").arg(static_cast<unsigned>(ch), 2, 16, QChar('0')).toUpper());
+            AppendHexByte(text, ch);
+            text.append(QLatin1Char(' '));
             if(ch == '\n')
             {
-                cursor.insertBlock();
+                text.append(QLatin1Char('\n'));
             }
             continue;
         }
 
         if(ch == '\n')
         {
-            cursor.insertBlock();
+            text.append(QLatin1Char('\n'));
             continue;
         }
         if(ch == '\r')
@@ -531,13 +660,19 @@ void Widget::renderRawData(const QByteArray &data)
         }
         if(ch >= 0x20 && ch <= 0x7e)
         {
-            cursor.insertText(QString(QChar(ch)));
+            text.append(QLatin1Char(ch));
         }
         else
         {
-            cursor.insertText(QString("<%1>").arg(static_cast<unsigned>(ch), 2, 16, QChar('0')).toUpper());
+            text.append(QLatin1Char('<'));
+            AppendHexByte(text, ch);
+            text.append(QLatin1Char('>'));
         }
     }
+
+    QTextCursor cursor = rxLog->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    cursor.insertText(text);
     rxLog->setTextCursor(cursor);
     rxLog->ensureCursorVisible();
 }

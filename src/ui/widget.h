@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QByteArray>
 #include <QCheckBox>
+#include <QList>
 #include <QPlainTextEdit>
 #include "transfer/FileTransmitter.h"
 #include "transfer/FileReceiver.h"
@@ -11,6 +12,8 @@
 namespace Ui {
 class Widget;
 }
+
+class QTimer;
 
 class Widget : public QWidget
 {
@@ -34,9 +37,13 @@ private slots:
     void readMonitorData();
     void appendRawData(const QByteArray &data);
     void refreshRxLog();
+    void flushRxRender();
 
 private:
     void refreshSerialPorts();
+    bool appendToRxLineCache(const QByteArray &data);
+    void trimRxLineCache();
+    void renderRxCache();
     void renderRawData(const QByteArray &data);
 
     Ui::Widget *ui;
@@ -45,7 +52,11 @@ private:
     FileReceiver *fileReceiver;
     QPlainTextEdit *rxLog;
     QCheckBox *rxHexCheckBox;
-    QByteArray rxBuffer;
+    QTimer *rxRenderTimer;
+    QList<QByteArray> rxLines;
+    QByteArray currentRxLine;
+    QByteArray pendingRxRender;
+    bool rxPaused;
 
     bool transmitButtonStatus;
     bool receiveButtonStatus;

@@ -15,7 +15,7 @@ WhYModem 是一个通过串口 XMODEM/YMODEM/ZMODEM 协议进行文件传输的 
 * `src/transfer/`：串口文件收发适配层，将协议读写回调连接到 `QFile` 和 `QSerialPort`，并通过 `ProtocolFactory` 创建具体协议。
 * `resources/`：应用图标和 Qt 资源文件。
 * `packaging/`：打包脚本与 Linux 桌面入口文件。
-* `docs/`：平台相关的构建与打包文档。
+* `docs/`：构建、打包和关键 UI 设计文档。
 
 依赖模块为 Qt Widgets、Qt SerialPort 和 Qt Core/Gui。
 
@@ -125,6 +125,8 @@ packaging\deploy-windows.bat
 ```
 
 详细步骤、参数说明和常见问题见 [docs/windows-build-and-package.md](docs/windows-build-and-package.md)。
+
+接收窗口的缓存、暂停/继续和批量刷新策略见 [docs/receive-window.md](docs/receive-window.md)。
 
 ## DEB 打包
 
