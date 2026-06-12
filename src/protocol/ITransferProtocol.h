@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <functional>
+#include <QtGlobal>
+#include <QString>
 
 class ITransferProtocol
 {
@@ -33,6 +35,8 @@ public:
     virtual const char *name() const = 0;
     virtual void setProtocolCallback(const ProtocolCallback &callback) = 0;
     virtual void setIoCallbacks(const ReadCallback &read, const WriteCallback &write) = 0;
+    virtual void setFileName(const QString &name) { Q_UNUSED(name); }
+    virtual void setFilePath(const QString &path) { Q_UNUSED(path); }
 
     virtual void receive() = 0;
     virtual void transmit() = 0;

@@ -28,6 +28,17 @@ set(PROJECT_SOURCES
     src/protocol/ymodem/YmodemProtocol.h
     src/protocol/zmodem/ZmodemProtocol.cpp
     src/protocol/zmodem/ZmodemProtocol.h
+    src/protocol/zmodem/qzmodem/lowlevelstuff.cpp
+    src/protocol/zmodem/qzmodem/lowlevelstuff.h
+    src/protocol/zmodem/qzmodem/qrecvzmodem.cpp
+    src/protocol/zmodem/qzmodem/qrecvzmodem.h
+    src/protocol/zmodem/qzmodem/qsendzmodem.cpp
+    src/protocol/zmodem/qzmodem/qsendzmodem.h
+    src/protocol/zmodem/qzmodem/util/crctab.cpp
+    src/protocol/zmodem/qzmodem/util/crctab.h
+    src/protocol/zmodem/qzmodem/util/timing.cpp
+    src/protocol/zmodem/qzmodem/util/timing.h
+    src/protocol/zmodem/qzmodem/util/zglobal.h
     src/transfer/FileReceiver.cpp
     src/transfer/FileReceiver.h
     src/transfer/FileTransmitter.cpp
@@ -42,6 +53,8 @@ add_executable(WhYModem WIN32 ${PROJECT_SOURCES})
 target_include_directories(WhYModem
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem/util
 )
 
 target_link_libraries(WhYModem

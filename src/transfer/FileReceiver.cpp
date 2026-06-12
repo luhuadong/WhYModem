@@ -50,6 +50,10 @@ void FileReceiver::setProtocolKind(ProtocolKind kind)
 void FileReceiver::setFilePath(const QString &path)
 {
     filePath = path + "/";
+    if(protocol)
+    {
+        protocol->setFilePath(path);
+    }
 }
 
 void FileReceiver::setPortName(const QString &name)
@@ -130,6 +134,13 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
     {
         case ITransferProtocol::StatusEstablish:
         {
+            if(protocolKind == ProtocolKind::Zmodem)
+            {
+                FileReceiver::status = ITransferProtocol::StatusEstablish;
+                receiveStatus(ITransferProtocol::StatusEstablish);
+                return ITransferProtocol::ReplyAck;
+            }
+
             if(buff != 0 && buff[0] != 0)
             {
                 int  i         =  0;
@@ -202,6 +213,30 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
 
         case ITransferProtocol::StatusTransmit:
         {
+            if(protocolKind == ProtocolKind::Zmodem)
+            {
+                if(len != 0 && *len > 0)
+                {
+                    fileCount += *len;
+                }
+                if(buff != 0)
+                {
+                    const long total = *reinterpret_cast<long *>(buff);
+                    if(total > 0)
+                    {
+                        fileSize = static_cast<uint64_t>(total);
+                    }
+                }
+                if(fileSize > 0)
+                {
+                    progress = (int)(fileCount * 100 / fileSize);
+                }
+                FileReceiver::status = ITransferProtocol::StatusTransmit;
+                receiveProgress(progress);
+                receiveStatus(ITransferProtocol::StatusTransmit);
+                return ITransferProtocol::ReplyAck;
+            }
+
             if(fileSize > 0 && (fileSize - fileCount) <= *len)
             {
                 file->write((char *)buff, fileSize - fileCount);
@@ -230,7 +265,10 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
 
         case ITransferProtocol::StatusFinish:
         {
-            file->close();
+            if(protocolKind != ProtocolKind::Zmodem)
+            {
+                file->close();
+            }
             progress = 100;
 
             FileReceiver::status = ITransferProtocol::StatusFinish;
@@ -300,6 +338,7 @@ uint32_t FileReceiver::write(uint8_t *buff, uint32_t len)
 void FileReceiver::configureProtocol()
 {
     protocol = ProtocolFactory::create(protocolKind);
+    protocol->setFilePath(filePath);
     protocol->setProtocolCallback([this](Status status, uint8_t *buff, uint32_t *len) {
         return callback(status, buff, len);
     });

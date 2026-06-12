@@ -1,6 +1,6 @@
 # WhYModem
 
-WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，非常小巧易用。程序中涉及到 YMODEM 协议知识，详细介绍见维基百科 [YMODEM](https://en.wikipedia.org/wiki/YMODEM)。
+WhYModem 是一个通过串口 XMODEM/YMODEM/ZMODEM 协议进行文件传输的 Qt 工具软件，非常小巧易用。程序中涉及到的协议知识，详细介绍参见维基百科（[XMODEM](https://en.wikipedia.org/wiki/XMODEM)、[YMODEM](https://en.wikipedia.org/wiki/YMODEM)、[ZMODEM](https://en.wikipedia.org/wiki/ZMODEM)）。
 
 ## 软件架构
 
@@ -11,13 +11,17 @@ WhYModem 是一个通过串口 YMODEM 协议进行文件传输的工具软件，
 * `src/protocol/ITransferProtocol.h`：传输协议适配接口，负责把协议状态机接入通用文件收发层。
 * `src/protocol/ymodem/`：YMODEM 协议状态机和 `YmodemProtocol` 适配器；原始 `Ymodem` 状态机保持独立。
 * `src/protocol/xmodem/`：XMODEM 基础状态机实现。
-* `src/protocol/zmodem/`：ZMODEM 协议类骨架；完整 ZMODEM 帧流程仍需继续实现。
+* `src/protocol/zmodem/`：ZMODEM 协议适配器和内嵌 qzmodem 实现。
 * `src/transfer/`：串口文件收发适配层，将协议读写回调连接到 `QFile` 和 `QSerialPort`，并通过 `ProtocolFactory` 创建具体协议。
 * `resources/`：应用图标和 Qt 资源文件。
 * `packaging/`：打包脚本与 Linux 桌面入口文件。
 * `docs/`：平台相关的构建与打包文档。
 
 依赖模块为 Qt Widgets、Qt SerialPort 和 Qt Core/Gui。
+
+## 第三方代码
+
+ZMODEM 实现基于 [qzmodem](https://github.com/QQxiaoming/qzmodem) 源码深度集成，代码位于 `src/protocol/zmodem/qzmodem/`，许可证副本位于 `src/protocol/zmodem/qzmodem/LICENSE`。集成层为 `src/protocol/zmodem/ZmodemProtocol.*`，负责把 qzmodem 的线程/信号模型适配到 WhYModem 的通用协议接口。
 
 ## 推荐开发环境
 

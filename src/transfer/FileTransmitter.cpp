@@ -57,6 +57,10 @@ void FileTransmitter::setProtocolKind(ProtocolKind kind)
 void FileTransmitter::setFileName(const QString &name)
 {
     file->setFileName(name);
+    if(protocol)
+    {
+        protocol->setFileName(name);
+    }
 }
 
 void FileTransmitter::setPortName(const QString &name)
@@ -144,6 +148,13 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
     {
         case ITransferProtocol::StatusEstablish:
         {
+            if(protocolKind == ProtocolKind::Zmodem)
+            {
+                FileTransmitter::status = ITransferProtocol::StatusEstablish;
+                transmitStatus(ITransferProtocol::StatusEstablish);
+                return ITransferProtocol::ReplyAck;
+            }
+
             if(file->open(QFile::ReadOnly) == true)
             {
                 QFileInfo fileInfo(*file);
@@ -177,6 +188,30 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
 
         case ITransferProtocol::StatusTransmit:
         {
+            if(protocolKind == ProtocolKind::Zmodem)
+            {
+                if(len != 0 && *len > 0)
+                {
+                    fileCount += *len;
+                    if(buff != 0)
+                    {
+                        const long total = *reinterpret_cast<long *>(buff);
+                        if(total > 0)
+                        {
+                            fileSize = static_cast<uint64_t>(total);
+                        }
+                    }
+                    if(fileSize > 0)
+                    {
+                        progress = (int)(fileCount * 100 / fileSize);
+                    }
+                }
+                FileTransmitter::status = ITransferProtocol::StatusTransmit;
+                transmitProgress(progress);
+                transmitStatus(ITransferProtocol::StatusTransmit);
+                return ITransferProtocol::ReplyAck;
+            }
+
             if(fileSize != fileCount)
             {
                 uint32_t requestSize = (len != 0 && *len > 0) ? *len : 0;
@@ -216,7 +251,10 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
 
         case ITransferProtocol::StatusFinish:
         {
-            file->close();
+            if(protocolKind != ProtocolKind::Zmodem)
+            {
+                file->close();
+            }
 
             FileTransmitter::status = ITransferProtocol::StatusFinish;
 
@@ -273,7 +311,14 @@ uint32_t FileTransmitter::read(uint8_t *buff, uint32_t len)
             return 0;
         }
         emit rawDataReceived(data);
-        appendFilteredRx(data);
+        if(protocolKind == ProtocolKind::Zmodem)
+        {
+            filteredRx.append(data);
+        }
+        else
+        {
+            appendFilteredRx(data);
+        }
     }
 
     const int n = std::min<int>(static_cast<int>(len), filteredRx.size());
@@ -293,7 +338,10 @@ uint32_t FileTransmitter::write(uint8_t *buff, uint32_t len)
         return 0;
     }
 
-    delayBeforePacket(buff, len);
+    if(protocolKind != ProtocolKind::Zmodem)
+    {
+        delayBeforePacket(buff, len);
+    }
 
     uint32_t written = 0;
     while(written < len)
@@ -311,7 +359,7 @@ uint32_t FileTransmitter::write(uint8_t *buff, uint32_t len)
     }
     serialPort->flush();
 
-    if(written == len)
+    if(written == len && protocolKind != ProtocolKind::Zmodem)
     {
         txEcho = QByteArray(reinterpret_cast<const char *>(buff), static_cast<int>(len));
         txEchoOffset = 0;
@@ -371,6 +419,7 @@ void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
 void FileTransmitter::configureProtocol()
 {
     protocol = ProtocolFactory::create(protocolKind);
+    protocol->setFileName(file->fileName());
     protocol->setProtocolCallback([this](Status status, uint8_t *buff, uint32_t *len) {
         return callback(status, buff, len);
     });
