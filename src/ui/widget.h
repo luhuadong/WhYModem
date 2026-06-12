@@ -22,6 +22,7 @@ public:
 
 private slots:
     void on_comButton_clicked();
+    void on_refreshButton_clicked();
     void on_transmitBrowse_clicked();
     void on_receiveBrowse_clicked();
     void on_transmitButton_clicked();
@@ -35,6 +36,7 @@ private slots:
     void refreshRxLog();
 
 private:
+    void refreshSerialPorts();
     void renderRawData(const QByteArray &data);
 
     Ui::Widget *ui;

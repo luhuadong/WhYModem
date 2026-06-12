@@ -233,6 +233,13 @@ QProgressBar {
        </spacer>
       </item>
       <item>
+       <widget class="QPushButton" name="refreshButton">
+        <property name="text">
+         <string>刷新</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QPushButton" name="comButton">
         <property name="text">
          <string>打开</string>

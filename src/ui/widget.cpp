@@ -59,12 +59,7 @@ Widget::Widget(QWidget *parent) :
     rxLayout->addLayout(toolbarLayout);
     ui->verticalLayout_3->addWidget(rxGroup, 1);
 
-    QSerialPortInfo serialPortInfo;
-
-    foreach(serialPortInfo, QSerialPortInfo::availablePorts())
-    {
-        ui->comPort->addItem(serialPortInfo.portName());
-    }
+    refreshSerialPorts();
 
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
@@ -111,6 +106,7 @@ void Widget::on_comButton_clicked()
             ui->comPort->setDisabled(true);
             ui->comBaudRate->setDisabled(true);
             ui->protocol->setDisabled(true);
+            ui->refreshButton->setDisabled(true);
             ui->comButton->setText(u8"关闭串口");
 
             ui->transmitBrowse->setEnabled(true);
@@ -140,6 +136,7 @@ void Widget::on_comButton_clicked()
         ui->comPort->setEnabled(true);
         ui->comBaudRate->setEnabled(true);
         ui->protocol->setEnabled(true);
+        ui->refreshButton->setEnabled(true);
         ui->comButton->setText(u8"打开串口");
 
         ui->transmitBrowse->setDisabled(true);
@@ -148,6 +145,11 @@ void Widget::on_comButton_clicked()
         ui->receiveBrowse->setDisabled(true);
         ui->receiveButton->setDisabled(true);
     }
+}
+
+void Widget::on_refreshButton_clicked()
+{
+    refreshSerialPorts();
 }
 
 void Widget::on_transmitBrowse_clicked()
@@ -194,6 +196,7 @@ void Widget::on_transmitButton_clicked()
             transmitButtonStatus = true;
 
             ui->comButton->setDisabled(true);
+            ui->refreshButton->setDisabled(true);
 
             ui->receiveBrowse->setDisabled(true);
             ui->receiveButton->setDisabled(true);
@@ -229,6 +232,7 @@ void Widget::on_receiveButton_clicked()
             receiveButtonStatus = true;
 
             ui->comButton->setDisabled(true);
+            ui->refreshButton->setDisabled(true);
 
             ui->transmitBrowse->setDisabled(true);
             ui->transmitButton->setDisabled(true);
@@ -277,6 +281,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             transmitButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->receiveBrowse->setEnabled(true);
 
@@ -298,6 +303,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             transmitButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->receiveBrowse->setEnabled(true);
 
@@ -319,6 +325,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             transmitButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->receiveBrowse->setEnabled(true);
 
@@ -340,6 +347,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             transmitButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->receiveBrowse->setEnabled(true);
 
@@ -375,6 +383,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             receiveButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->transmitBrowse->setEnabled(true);
 
@@ -396,6 +405,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             receiveButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->transmitBrowse->setEnabled(true);
 
@@ -417,6 +427,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             receiveButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->transmitBrowse->setEnabled(true);
 
@@ -438,6 +449,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
             receiveButtonStatus = false;
 
             ui->comButton->setEnabled(true);
+            ui->refreshButton->setEnabled(true);
 
             ui->transmitBrowse->setEnabled(true);
 
@@ -477,6 +489,32 @@ void Widget::refreshRxLog()
 {
     rxLog->clear();
     renderRawData(rxBuffer);
+}
+
+void Widget::refreshSerialPorts()
+{
+    const QString currentPort = ui->comPort->currentText();
+
+    ui->comPort->blockSignals(true);
+    ui->comPort->clear();
+
+    const QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
+    for(const QSerialPortInfo &serialPortInfo : ports)
+    {
+        ui->comPort->addItem(serialPortInfo.portName());
+    }
+
+    const int currentIndex = ui->comPort->findText(currentPort);
+    if(currentIndex >= 0)
+    {
+        ui->comPort->setCurrentIndex(currentIndex);
+    }
+    else if(ui->comPort->count() > 0)
+    {
+        ui->comPort->setCurrentIndex(0);
+    }
+
+    ui->comPort->blockSignals(false);
 }
 
 void Widget::renderRawData(const QByteArray &data)
