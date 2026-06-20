@@ -280,7 +280,8 @@ void Widget::on_receiveButton_clicked()
     {
         serialPort->close();
 
-        fileReceiver->setProtocolKind(ProtocolFactory::fromName(ui->protocol->currentText()));
+        const ProtocolKind receiveProtocol = ProtocolFactory::fromName(ui->protocol->currentText());
+        fileReceiver->setProtocolKind(receiveProtocol);
         fileReceiver->setFilePath(ui->receivePath->text());
         fileReceiver->setPortName(ui->comPort->currentText());
         fileReceiver->setPortBaudRate(ui->comBaudRate->currentText().toInt());
@@ -298,10 +299,21 @@ void Widget::on_receiveButton_clicked()
             ui->receivePath->setDisabled(true);
             ui->receiveBrowse->setDisabled(true);
             ui->receiveButton->setText(u8"取消");
-            ui->receiveProgress->setValue(0);
+            if(receiveProtocol == ProtocolKind::Xmodem)
+            {
+                ui->receiveProgress->setRange(0, 0);
+            }
+            else
+            {
+                ui->receiveProgress->setRange(0, 100);
+                ui->receiveProgress->setValue(0);
+            }
         }
         else
         {
+            ui->receiveProgress->setRange(0, 100);
+            ui->receiveProgress->setValue(0);
+
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
         }
     }
@@ -455,6 +467,8 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receiveProgress->setRange(0, 100);
+            ui->receiveProgress->setValue(100);
             ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
@@ -478,9 +492,12 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receiveProgress->setRange(0, 100);
             ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
+
+            ui->receiveProgress->setValue(0);
 
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
 
@@ -501,9 +518,12 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receiveProgress->setRange(0, 100);
             ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
+
+            ui->receiveProgress->setValue(0);
 
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
 
@@ -524,9 +544,12 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receiveProgress->setRange(0, 100);
             ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
+
+            ui->receiveProgress->setValue(0);
 
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
         }
