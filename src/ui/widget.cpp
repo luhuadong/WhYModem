@@ -1,6 +1,7 @@
 ﻿#include "widget.h"
 #include "ui_widget.h"
 #include "config/AppConfig.h"
+#include "ui/aboutdialog.h"
 #include "ui/settingsdialog.h"
 #include <QMessageBox>
 #include <QEvent>
@@ -88,9 +89,11 @@ Widget::Widget(QWidget *parent) :
     rxLog(new QPlainTextEdit),
     rxHexCheckBox(new QCheckBox(u8"十六进制显示")),
     settingsButton(new QPushButton),
+    aboutButton(new QPushButton),
     rxRenderTimer(new QTimer(this)),
     rxPaused(false),
-    settingsButtonHovered(false)
+    settingsButtonHovered(false),
+    aboutButtonHovered(false)
 {
     transmitButtonStatus = false;
     receiveButtonStatus  = false;
@@ -131,16 +134,8 @@ Widget::Widget(QWidget *parent) :
     AppConfig::ensureConfigFile();
     applyTransmitConfig();
 
-    settingsButton->setToolTip(u8"设置");
-    settingsButton->setAccessibleName(u8"设置");
-    settingsButton->setText(QString());
-    settingsButton->setFlat(true);
-    settingsButton->setCursor(Qt::PointingHandCursor);
-    settingsButton->setFixedSize(30, 30);
-    settingsButton->setIconSize(QSize(18, 18));
-    settingsButton->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }"
-                                  "QPushButton:hover { background: transparent; }");
-    settingsButton->installEventFilter(this);
+    configureFooterIconButton(settingsButton, u8"设置");
+    configureFooterIconButton(aboutButton, u8"关于");
 
     QHBoxLayout *footerLayout = new QHBoxLayout;
     footerLayout->setContentsMargins(0, 0, 0, 0);
@@ -149,8 +144,9 @@ Widget::Widget(QWidget *parent) :
     footerLayout->addWidget(ui->versionLabel);
     footerLayout->addStretch();
     footerLayout->addWidget(settingsButton);
+    footerLayout->addWidget(aboutButton);
     ui->serialConfigLayout->addLayout(footerLayout);
-    updateSettingsIcon();
+    updateFooterIcons();
 
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
@@ -165,6 +161,7 @@ Widget::Widget(QWidget *parent) :
     connect(fileReceiver, &FileReceiver::receiveStatus, this, &Widget::receiveStatus);
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(settingsButton, &QPushButton::clicked, this, &Widget::openSettingsDialog);
+    connect(aboutButton, &QPushButton::clicked, this, &Widget::openAboutDialog);
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(serialPort, SIGNAL(readyRead()), this, SLOT(readMonitorData()));
     rxRenderTimer->setSingleShot(true);
@@ -218,23 +215,24 @@ void Widget::changeEvent(QEvent *event)
        event->type() == QEvent::ApplicationPaletteChange ||
        event->type() == QEvent::StyleChange)
     {
-        updateSettingsIcon();
+        updateFooterIcons();
     }
 }
 
 bool Widget::eventFilter(QObject *object, QEvent *event)
 {
-    if(object == settingsButton)
+    if(object == settingsButton || object == aboutButton)
     {
+        bool *hovered = object == settingsButton ? &settingsButtonHovered : &aboutButtonHovered;
         if(event->type() == QEvent::Enter)
         {
-            settingsButtonHovered = true;
-            updateSettingsIcon();
+            *hovered = true;
+            updateFooterIcons();
         }
         else if(event->type() == QEvent::Leave)
         {
-            settingsButtonHovered = false;
-            updateSettingsIcon();
+            *hovered = false;
+            updateFooterIcons();
         }
     }
 
@@ -257,20 +255,46 @@ void Widget::openSettingsDialog()
     applyTransmitConfig();
 }
 
-void Widget::updateSettingsIcon()
+void Widget::openAboutDialog()
 {
-    if(settingsButton == 0)
+    AboutDialog dialog(this);
+    dialog.exec();
+}
+
+void Widget::configureFooterIconButton(QPushButton *button, const QString &tooltip)
+{
+    button->setToolTip(tooltip);
+    button->setAccessibleName(tooltip);
+    button->setText(QString());
+    button->setFlat(true);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setFixedSize(30, 30);
+    button->setIconSize(QSize(18, 18));
+    button->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }"
+                          "QPushButton:hover { background: transparent; }");
+    button->installEventFilter(this);
+}
+
+void Widget::updateFooterIconButton(QPushButton *button, const QString &iconPath, bool hovered)
+{
+    if(button == 0)
     {
         return;
     }
 
     const QColor background = palette().color(QPalette::Window);
     const QColor hoverColor = background.lightness() > 127 ? QColor(Qt::black) : QColor(Qt::white);
-    const QColor iconColor = settingsButtonHovered
+    const QColor iconColor = hovered
                                ? hoverColor
                                : BlendColor(hoverColor, background, SettingsIconNormalBlend);
 
-    settingsButton->setIcon(ThemedSvgIcon(":/icons/settings.svg", iconColor, QSize(64, 64)));
+    button->setIcon(ThemedSvgIcon(iconPath, iconColor, QSize(64, 64)));
+}
+
+void Widget::updateFooterIcons()
+{
+    updateFooterIconButton(settingsButton, ":/icons/settings.svg", settingsButtonHovered);
+    updateFooterIconButton(aboutButton, ":/icons/about.svg", aboutButtonHovered);
 }
 
 void Widget::on_comButton_clicked()
