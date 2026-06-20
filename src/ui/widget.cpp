@@ -1,13 +1,18 @@
 ﻿#include "widget.h"
 #include "ui_widget.h"
 #include "config/AppConfig.h"
+#include "ui/settingsdialog.h"
 #include <QMessageBox>
+#include <QEvent>
+#include <QIcon>
 #include <QFileDialog>
+#include <QFile>
 #include <QSerialPortInfo>
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QPixmap>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
@@ -31,6 +36,26 @@ void AppendHexByte(QString &text, unsigned char ch)
     text.append(QLatin1Char(digits[ch & 0x0f]));
 }
 
+QIcon ThemedSvgIcon(const QString &path, const QColor &color, const QSize &size)
+{
+    QFile file(path);
+    if(!file.open(QFile::ReadOnly))
+    {
+        return QIcon();
+    }
+
+    QByteArray svg = file.readAll();
+    svg.replace("#000000", color.name(QColor::HexRgb).toLatin1());
+
+    QPixmap pixmap;
+    if(!pixmap.loadFromData(svg, "SVG"))
+    {
+        return QIcon();
+    }
+
+    return QIcon(pixmap.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
 void ShowMessage(QWidget *parent, const QString &title, const QString &text, QMessageBox::Icon icon)
 {
     QMessageBox box(parent);
@@ -51,6 +76,7 @@ Widget::Widget(QWidget *parent) :
     fileReceiver(new FileReceiver),
     rxLog(new QPlainTextEdit),
     rxHexCheckBox(new QCheckBox(u8"十六进制显示")),
+    settingsButton(new QPushButton),
     rxRenderTimer(new QTimer(this)),
     rxPaused(false)
 {
@@ -91,6 +117,26 @@ Widget::Widget(QWidget *parent) :
     ui->comPort->setEditable(true);
     refreshSerialPorts();
     AppConfig::ensureConfigFile();
+    applyTransmitConfig();
+
+    settingsButton->setToolTip(u8"设置");
+    settingsButton->setAccessibleName(u8"设置");
+    settingsButton->setText(QString());
+    settingsButton->setFlat(true);
+    settingsButton->setCursor(Qt::PointingHandCursor);
+    settingsButton->setFixedSize(30, 30);
+    settingsButton->setIconSize(QSize(18, 18));
+    settingsButton->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }");
+
+    QHBoxLayout *footerLayout = new QHBoxLayout;
+    footerLayout->setContentsMargins(0, 0, 0, 0);
+    footerLayout->setSpacing(6);
+    ui->serialConfigLayout->removeWidget(ui->versionLabel);
+    footerLayout->addWidget(ui->versionLabel);
+    footerLayout->addStretch();
+    footerLayout->addWidget(settingsButton);
+    ui->serialConfigLayout->addLayout(footerLayout);
+    updateSettingsIcon();
 
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
@@ -104,6 +150,7 @@ Widget::Widget(QWidget *parent) :
     connect(fileTransmitter, &FileTransmitter::transmitStatus, this, &Widget::transmitStatus);
     connect(fileReceiver, &FileReceiver::receiveStatus, this, &Widget::receiveStatus);
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
+    connect(settingsButton, &QPushButton::clicked, this, &Widget::openSettingsDialog);
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
     connect(serialPort, SIGNAL(readyRead()), this, SLOT(readMonitorData()));
     rxRenderTimer->setSingleShot(true);
@@ -147,6 +194,44 @@ Widget::~Widget()
     delete serialPort;
     delete fileTransmitter;
     delete fileReceiver;
+}
+
+void Widget::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+
+    if(event->type() == QEvent::PaletteChange ||
+       event->type() == QEvent::ApplicationPaletteChange ||
+       event->type() == QEvent::StyleChange)
+    {
+        updateSettingsIcon();
+    }
+}
+
+void Widget::applyTransmitConfig()
+{
+    const TransmitDelayConfig delays = AppConfig::transmitDelays();
+    fileTransmitter->setTransferDelays(delays.firstDataDelayMs, delays.interPacketDelayMs);
+}
+
+void Widget::openSettingsDialog()
+{
+    SettingsDialog dialog(this);
+    connect(&dialog, &SettingsDialog::transmitDelaySaved, this, [this](const TransmitDelayConfig &delays) {
+        fileTransmitter->setTransferDelays(delays.firstDataDelayMs, delays.interPacketDelayMs);
+    });
+    dialog.exec();
+    applyTransmitConfig();
+}
+
+void Widget::updateSettingsIcon()
+{
+    if(settingsButton == 0)
+    {
+        return;
+    }
+
+    settingsButton->setIcon(ThemedSvgIcon(":/icons/settings.svg", palette().color(QPalette::ButtonText), QSize(64, 64)));
 }
 
 void Widget::on_comButton_clicked()
@@ -250,8 +335,7 @@ void Widget::on_transmitButton_clicked()
         fileTransmitter->setPortName(ui->comPort->currentText());
         fileTransmitter->setPortBaudRate(ui->comBaudRate->currentText().toInt());
 
-        const TransmitDelayConfig delays = AppConfig::transmitDelays();
-        fileTransmitter->setTransferDelays(delays.firstDataDelayMs, delays.interPacketDelayMs);
+        applyTransmitConfig();
 
         if(fileTransmitter->startTransmit() == true)
         {

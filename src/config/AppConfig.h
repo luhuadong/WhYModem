@@ -15,6 +15,7 @@ public:
     static QString configFilePath();
     static void ensureConfigFile();
     static TransmitDelayConfig transmitDelays();
+    static void setTransmitDelays(const TransmitDelayConfig &config);
 };
 
 #endif // APPCONFIG_H

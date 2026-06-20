@@ -14,6 +14,8 @@ class Widget;
 }
 
 class QTimer;
+class QEvent;
+class QPushButton;
 
 class Widget : public QWidget
 {
@@ -22,6 +24,9 @@ class Widget : public QWidget
 public:
     explicit Widget(QWidget *parent = 0);
     ~Widget();
+
+protected:
+    void changeEvent(QEvent *event) override;
 
 private slots:
     void on_comButton_clicked();
@@ -41,6 +46,9 @@ private slots:
 
 private:
     void refreshSerialPorts();
+    void applyTransmitConfig();
+    void openSettingsDialog();
+    void updateSettingsIcon();
     bool appendToRxLineCache(const QByteArray &data);
     void trimRxLineCache();
     void renderRxCache();
@@ -52,6 +60,7 @@ private:
     FileReceiver *fileReceiver;
     QPlainTextEdit *rxLog;
     QCheckBox *rxHexCheckBox;
+    QPushButton *settingsButton;
     QTimer *rxRenderTimer;
     QList<QByteArray> rxLines;
     QByteArray currentRxLine;

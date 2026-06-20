@@ -50,6 +50,8 @@ set(WHYMODEM_GUI_SOURCES
     src/ui/widget.cpp
     src/ui/widget.h
     src/ui/widget.ui
+    src/ui/settingsdialog.cpp
+    src/ui/settingsdialog.h
     resources/resources.qrc
 )
 

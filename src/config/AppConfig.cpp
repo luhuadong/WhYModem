@@ -76,3 +76,15 @@ TransmitDelayConfig AppConfig::transmitDelays()
     settings.endGroup();
     return config;
 }
+
+void AppConfig::setTransmitDelays(const TransmitDelayConfig &config)
+{
+    ensureConfigFile();
+
+    QSettings settings(configFilePath(), QSettings::IniFormat);
+    settings.beginGroup(TransmitGroup);
+    settings.setValue(FirstDataDelayKey, std::max(0, config.firstDataDelayMs));
+    settings.setValue(InterPacketDelayKey, std::max(0, config.interPacketDelayMs));
+    settings.endGroup();
+    settings.sync();
+}
