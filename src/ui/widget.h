@@ -60,6 +60,9 @@ private:
     void trimRxLineCache();
     void renderRxCache();
     void renderRawData(const QByteArray &data);
+    void flushPendingRxRender();
+    void restoreSerialMonitorIfNeeded();
+    void finishTransferSession();
 
     Ui::Widget *ui;
     QSerialPort *serialPort;
@@ -81,6 +84,7 @@ private:
 
     bool transmitButtonStatus;
     bool receiveButtonStatus;
+    bool serialMonitorOpen;
 };
 
 #endif // WIDGET_H

@@ -94,6 +94,7 @@ Widget::Widget(QWidget *parent) :
     aboutButton(new QPushButton),
     rxRenderTimer(new QTimer(this)),
     rxPaused(false),
+    serialMonitorOpen(false),
     versionButtonHovered(false),
     settingsButtonHovered(false),
     aboutButtonHovered(false)
@@ -349,16 +350,14 @@ void Widget::updateFooterIcons()
 
 void Widget::on_comButton_clicked()
 {
-    static bool button_status = false;
-
-    if(button_status == false)
+    if(serialMonitorOpen == false)
     {
         serialPort->setPortName(ui->comPort->currentText());
         serialPort->setBaudRate(ui->comBaudRate->currentText().toInt());
 
         if(serialPort->open(QSerialPort::ReadWrite) == true)
         {
-            button_status = true;
+            serialMonitorOpen = true;
 
             ui->comPort->setDisabled(true);
             ui->comBaudRate->setDisabled(true);
@@ -373,7 +372,7 @@ void Widget::on_comButton_clicked()
     }
     else
     {
-        button_status = false;
+        serialMonitorOpen = false;
 
         serialPort->close();
 
@@ -441,6 +440,7 @@ void Widget::on_transmitButton_clicked()
 {
     if(transmitButtonStatus == false)
     {
+        flushPendingRxRender();
         serialPort->close();
 
         fileTransmitter->setProtocolKind(ProtocolFactory::fromName(ui->protocol->currentText()));
@@ -480,6 +480,7 @@ void Widget::on_receiveButton_clicked()
 {
     if(receiveButtonStatus == false)
     {
+        flushPendingRxRender();
         serialPort->close();
 
         const ProtocolKind receiveProtocol = ProtocolFactory::fromName(ui->protocol->currentText());
@@ -567,6 +568,8 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->transmitBrowse->setEnabled(true);
             ui->transmitButton->setText(u8"发送");
 
+            finishTransferSession();
+
             ShowMessage(this, u8"成功", u8"文件发送成功！", QMessageBox::Information);
 
             break;
@@ -589,6 +592,8 @@ void Widget::transmitStatus(FileTransmitter::Status status)
 
             ui->transmitBrowse->setEnabled(true);
             ui->transmitButton->setText(u8"发送");
+
+            finishTransferSession();
 
             ShowMessage(this, u8"失败", u8"文件发送失败！", QMessageBox::Warning);
 
@@ -613,6 +618,8 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->transmitBrowse->setEnabled(true);
             ui->transmitButton->setText(u8"发送");
 
+            finishTransferSession();
+
             ShowMessage(this, u8"失败", u8"文件发送失败！", QMessageBox::Warning);
 
             break;
@@ -635,6 +642,8 @@ void Widget::transmitStatus(FileTransmitter::Status status)
 
             ui->transmitBrowse->setEnabled(true);
             ui->transmitButton->setText(u8"发送");
+
+            finishTransferSession();
 
             ShowMessage(this, u8"失败", u8"文件发送失败！", QMessageBox::Warning);
         }
@@ -675,6 +684,8 @@ void Widget::receiveStatus(FileReceiver::Status status)
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
 
+            finishTransferSession();
+
             ShowMessage(this, u8"成功", u8"文件接收成功！", QMessageBox::Information);
 
             break;
@@ -700,6 +711,8 @@ void Widget::receiveStatus(FileReceiver::Status status)
             ui->receiveButton->setText(u8"接收");
 
             ui->receiveProgress->setValue(0);
+
+            finishTransferSession();
 
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
 
@@ -727,6 +740,8 @@ void Widget::receiveStatus(FileReceiver::Status status)
 
             ui->receiveProgress->setValue(0);
 
+            finishTransferSession();
+
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
 
             break;
@@ -752,6 +767,8 @@ void Widget::receiveStatus(FileReceiver::Status status)
             ui->receiveButton->setText(u8"接收");
 
             ui->receiveProgress->setValue(0);
+
+            finishTransferSession();
 
             ShowMessage(this, u8"失败", u8"文件接收失败！", QMessageBox::Warning);
         }
@@ -780,16 +797,10 @@ void Widget::appendRawData(const QByteArray &data)
         return;
     }
 
-    if(segmented)
-    {
-        pendingRxRender.clear();
-        rxRenderTimer->stop();
-        renderRxCache();
-        return;
-    }
-
+    rxRenderTimer->stop();
     pendingRxRender.append(data);
-    if(pendingRxRender.size() >= MaxPendingRxRenderBytes)
+
+    if(segmented || pendingRxRender.size() >= MaxPendingRxRenderBytes)
     {
         flushRxRender();
         return;
@@ -798,6 +809,42 @@ void Widget::appendRawData(const QByteArray &data)
     if(!rxRenderTimer->isActive())
     {
         rxRenderTimer->start(RxRenderIntervalMs);
+    }
+}
+
+void Widget::flushPendingRxRender()
+{
+    rxRenderTimer->stop();
+    flushRxRender();
+}
+
+void Widget::finishTransferSession()
+{
+    flushPendingRxRender();
+    restoreSerialMonitorIfNeeded();
+}
+
+void Widget::restoreSerialMonitorIfNeeded()
+{
+    if(serialMonitorOpen == false || serialPort->isOpen())
+    {
+        return;
+    }
+
+    serialPort->setPortName(ui->comPort->currentText());
+    serialPort->setBaudRate(ui->comBaudRate->currentText().toInt());
+    if(serialPort->open(QSerialPort::ReadWrite) == true)
+    {
+        ui->comPort->setDisabled(true);
+        ui->comBaudRate->setDisabled(true);
+        ui->protocol->setDisabled(true);
+        ui->refreshButton->setDisabled(true);
+        ui->comButton->setText(u8"关闭串口");
+    }
+    else
+    {
+        serialMonitorOpen = false;
+        ui->comButton->setText(u8"打开串口");
     }
 }
 
