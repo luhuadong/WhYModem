@@ -3,6 +3,7 @@
 #include "config/AppConfig.h"
 #include "ui/aboutdialog.h"
 #include "ui/settingsdialog.h"
+#include "ui/versiondialog.h"
 #include <QMessageBox>
 #include <QEvent>
 #include <QObject>
@@ -88,10 +89,12 @@ Widget::Widget(QWidget *parent) :
     fileReceiver(new FileReceiver),
     rxLog(new QPlainTextEdit),
     rxHexCheckBox(new QCheckBox(u8"十六进制显示")),
+    versionButton(new QPushButton),
     settingsButton(new QPushButton),
     aboutButton(new QPushButton),
     rxRenderTimer(new QTimer(this)),
     rxPaused(false),
+    versionButtonHovered(false),
     settingsButtonHovered(false),
     aboutButtonHovered(false)
 {
@@ -99,7 +102,7 @@ Widget::Widget(QWidget *parent) :
     receiveButtonStatus  = false;
 
     ui->setupUi(this);
-    ui->versionLabel->setText(QString("V%1").arg(WHYMODEM_VERSION));
+    ui->versionLabel->hide();
     setMinimumSize(860, 500);
     resize(900, 560);
 
@@ -134,6 +137,7 @@ Widget::Widget(QWidget *parent) :
     AppConfig::ensureConfigFile();
     applyTransmitConfig();
 
+    configureFooterTextButton(versionButton, QString("V%1").arg(WHYMODEM_VERSION));
     configureFooterIconButton(settingsButton, u8"设置");
     configureFooterIconButton(aboutButton, u8"关于");
 
@@ -141,7 +145,7 @@ Widget::Widget(QWidget *parent) :
     footerLayout->setContentsMargins(0, 0, 0, 0);
     footerLayout->setSpacing(6);
     ui->serialConfigLayout->removeWidget(ui->versionLabel);
-    footerLayout->addWidget(ui->versionLabel);
+    footerLayout->addWidget(versionButton);
     footerLayout->addStretch();
     footerLayout->addWidget(settingsButton);
     footerLayout->addWidget(aboutButton);
@@ -160,6 +164,7 @@ Widget::Widget(QWidget *parent) :
     connect(fileTransmitter, &FileTransmitter::transmitStatus, this, &Widget::transmitStatus);
     connect(fileReceiver, &FileReceiver::receiveStatus, this, &Widget::receiveStatus);
     connect(fileTransmitter, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
+    connect(versionButton, &QPushButton::clicked, this, &Widget::openVersionDialog);
     connect(settingsButton, &QPushButton::clicked, this, &Widget::openSettingsDialog);
     connect(aboutButton, &QPushButton::clicked, this, &Widget::openAboutDialog);
     connect(fileReceiver, SIGNAL(rawDataReceived(QByteArray)), this, SLOT(appendRawData(QByteArray)));
@@ -221,9 +226,17 @@ void Widget::changeEvent(QEvent *event)
 
 bool Widget::eventFilter(QObject *object, QEvent *event)
 {
-    if(object == settingsButton || object == aboutButton)
+    if(object == versionButton || object == settingsButton || object == aboutButton)
     {
-        bool *hovered = object == settingsButton ? &settingsButtonHovered : &aboutButtonHovered;
+        bool *hovered = &versionButtonHovered;
+        if(object == settingsButton)
+        {
+            hovered = &settingsButtonHovered;
+        }
+        else if(object == aboutButton)
+        {
+            hovered = &aboutButtonHovered;
+        }
         if(event->type() == QEvent::Enter)
         {
             *hovered = true;
@@ -245,6 +258,12 @@ void Widget::applyTransmitConfig()
     fileTransmitter->setTransferDelays(delays.firstDataDelayMs, delays.interPacketDelayMs);
 }
 
+void Widget::openVersionDialog()
+{
+    VersionDialog dialog(this);
+    dialog.exec();
+}
+
 void Widget::openSettingsDialog()
 {
     SettingsDialog dialog(this);
@@ -261,6 +280,19 @@ void Widget::openAboutDialog()
     dialog.exec();
 }
 
+void Widget::configureFooterTextButton(QPushButton *button, const QString &text)
+{
+    button->setToolTip(u8"版本信息");
+    button->setAccessibleName(u8"版本信息");
+    button->setText(text);
+    button->setFlat(true);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setMinimumWidth(0);
+    button->setStyleSheet("QPushButton { min-width: 0px; padding: 0px; border: 0px; background: transparent; text-align: left; }"
+                          "QPushButton:hover { background: transparent; }");
+    button->installEventFilter(this);
+}
+
 void Widget::configureFooterIconButton(QPushButton *button, const QString &tooltip)
 {
     button->setToolTip(tooltip);
@@ -273,6 +305,23 @@ void Widget::configureFooterIconButton(QPushButton *button, const QString &toolt
     button->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }"
                           "QPushButton:hover { background: transparent; }");
     button->installEventFilter(this);
+}
+
+void Widget::updateFooterTextButton()
+{
+    if(versionButton == 0)
+    {
+        return;
+    }
+
+    const QColor background = palette().color(QPalette::Window);
+    const QColor hoverColor = background.lightness() > 127 ? QColor(Qt::black) : QColor(Qt::white);
+    const QColor textColor = versionButtonHovered
+                               ? hoverColor
+                               : BlendColor(hoverColor, background, SettingsIconNormalBlend);
+    versionButton->setStyleSheet(QString("QPushButton { min-width: 0px; padding: 0px; border: 0px; background: transparent; text-align: left; color: %1; }"
+                                         "QPushButton:hover { background: transparent; }")
+                                     .arg(textColor.name(QColor::HexRgb)));
 }
 
 void Widget::updateFooterIconButton(QPushButton *button, const QString &iconPath, bool hovered)
@@ -293,6 +342,7 @@ void Widget::updateFooterIconButton(QPushButton *button, const QString &iconPath
 
 void Widget::updateFooterIcons()
 {
+    updateFooterTextButton();
     updateFooterIconButton(settingsButton, ":/icons/settings.svg", settingsButtonHovered);
     updateFooterIconButton(aboutButton, ":/icons/about.svg", aboutButtonHovered);
 }

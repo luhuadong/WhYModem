@@ -49,8 +49,11 @@ private:
     void refreshSerialPorts();
     void applyTransmitConfig();
     void openSettingsDialog();
+    void openVersionDialog();
     void openAboutDialog();
+    void configureFooterTextButton(QPushButton *button, const QString &text);
     void configureFooterIconButton(QPushButton *button, const QString &tooltip);
+    void updateFooterTextButton();
     void updateFooterIconButton(QPushButton *button, const QString &iconPath, bool hovered);
     void updateFooterIcons();
     bool appendToRxLineCache(const QByteArray &data);
@@ -64,6 +67,7 @@ private:
     FileReceiver *fileReceiver;
     QPlainTextEdit *rxLog;
     QCheckBox *rxHexCheckBox;
+    QPushButton *versionButton;
     QPushButton *settingsButton;
     QPushButton *aboutButton;
     QTimer *rxRenderTimer;
@@ -71,6 +75,7 @@ private:
     QByteArray currentRxLine;
     QByteArray pendingRxRender;
     bool rxPaused;
+    bool versionButtonHovered;
     bool settingsButtonHovered;
     bool aboutButtonHovered;
 
