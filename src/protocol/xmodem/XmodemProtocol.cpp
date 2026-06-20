@@ -329,7 +329,7 @@ void XmodemProtocol::transmitStageTransmitting()
         return;
     }
 
-    txPacketSize = Packet1KSize;
+    txPacketSize = PacketSize;
     memset(&(txBuffer[3]), 0x1A, txPacketSize);
     uint32_t len = txPacketSize;
     const Reply reply = protocolCallback(StatusTransmit, &(txBuffer[3]), &len);

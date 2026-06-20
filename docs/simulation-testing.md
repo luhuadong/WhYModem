@@ -2,6 +2,8 @@
 
 本项目可以在纯 Linux 上闭环测试，不需要单片机。关键思路是用 `socat` 创建一对虚拟串口，再用 `lrzsz` 的 `sx/sb/sz/rx/rb/rz` 跟 WhYModem 对传。
 
+协议实现细节、XMODEM 尾包 padding 处理和文件对比注意事项见 [软件实现说明与使用注意事项](implementation-notes.md)。
+
 
 
 ## 测试方案

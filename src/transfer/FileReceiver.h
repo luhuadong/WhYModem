@@ -61,6 +61,7 @@ private:
     QString  fileName;
     uint64_t fileSize;
     uint64_t fileCount;
+    QByteArray pendingXmodemBlock;
 };
 
 #endif // FILERECEIVER_H

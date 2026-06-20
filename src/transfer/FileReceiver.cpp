@@ -72,6 +72,7 @@ bool FileReceiver::startReceive()
     status   = ITransferProtocol::StatusEstablish;
     fileSize = 0;
     fileCount = 0;
+    pendingXmodemBlock.clear();
 
     if(serialPort->open(QSerialPort::ReadWrite) == true)
     {
@@ -88,6 +89,7 @@ bool FileReceiver::startReceive()
 void FileReceiver::stopReceive()
 {
     file->close();
+    pendingXmodemBlock.clear();
     if(protocol)
     {
         protocol->abort();
@@ -237,7 +239,22 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
                 return ITransferProtocol::ReplyAck;
             }
 
-            if(fileSize > 0 && (fileSize - fileCount) <= *len)
+            if(buff == 0 || len == 0)
+            {
+                return ITransferProtocol::ReplyCancel;
+            }
+
+            if(protocolKind == ProtocolKind::Xmodem)
+            {
+                if(pendingXmodemBlock.isEmpty() != true)
+                {
+                    file->write(pendingXmodemBlock);
+                    fileCount += static_cast<uint64_t>(pendingXmodemBlock.size());
+                }
+
+                pendingXmodemBlock = QByteArray(reinterpret_cast<const char *>(buff), static_cast<int>(*len));
+            }
+            else if(fileSize > 0 && (fileSize - fileCount) <= *len)
             {
                 file->write((char *)buff, fileSize - fileCount);
 
@@ -265,6 +282,22 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
 
         case ITransferProtocol::StatusFinish:
         {
+            if(protocolKind == ProtocolKind::Xmodem && pendingXmodemBlock.isEmpty() != true)
+            {
+                int validSize = pendingXmodemBlock.size();
+                while(validSize > 0 && static_cast<unsigned char>(pendingXmodemBlock.at(validSize - 1)) == 0x1A)
+                {
+                    --validSize;
+                }
+
+                if(validSize > 0)
+                {
+                    file->write(pendingXmodemBlock.constData(), validSize);
+                    fileCount += static_cast<uint64_t>(validSize);
+                }
+                pendingXmodemBlock.clear();
+            }
+
             if(protocolKind != ProtocolKind::Zmodem)
             {
                 file->close();
@@ -282,6 +315,7 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
         case ITransferProtocol::StatusAbort:
         {
             file->close();
+            pendingXmodemBlock.clear();
 
             FileReceiver::status = ITransferProtocol::StatusAbort;
 
@@ -292,6 +326,8 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
 
         case ITransferProtocol::StatusTimeout:
         {
+            pendingXmodemBlock.clear();
+
             FileReceiver::status = ITransferProtocol::StatusTimeout;
 
             writeTimer->start(WRITE_TIME_OUT);
@@ -302,6 +338,7 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
         default:
         {
             file->close();
+            pendingXmodemBlock.clear();
 
             FileReceiver::status = ITransferProtocol::StatusError;
 
