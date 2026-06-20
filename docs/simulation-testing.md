@@ -26,6 +26,45 @@ sudo apt install lrzsz socat
 
 
 
+## 自动化 CLI 回归
+
+仓库提供 `WhYModemCli` 和 `tools/run_lrzsz_matrix.sh`，用于不启动 GUI 的协议回归测试。CLI 复用 WhYModem 的 `FileTransmitter`、`FileReceiver` 和协议状态机，因此测试结果能直接反映核心传输代码。
+
+构建：
+
+```bash
+cmake -S . -B build
+cmake --build build --target WhYModemCli
+```
+
+运行完整矩阵：
+
+```bash
+tools/run_lrzsz_matrix.sh --protocols xmodem,ymodem,zmodem --keep-work
+```
+
+脚本会为每个 case 重启一对 `socat` 虚拟串口，并测试 6 个方向：
+
+```text
+WhYModemCli send XMODEM -> rx
+sx -> WhYModemCli receive XMODEM
+WhYModemCli send YMODEM -> rb
+sb -> WhYModemCli receive YMODEM
+WhYModemCli send ZMODEM -> rz
+sz -> WhYModemCli receive ZMODEM
+```
+
+失败时保留的工作目录里包含 `cli.log`、`*.raw` 和 lrzsz 日志，可用于分析控制字节和状态机阶段。
+
+也可以直接使用 CLI 手动测试：
+
+```bash
+build/WhYModemCli send --protocol ymodem --port /tmp/whymodem_gui --file firmware.bin
+build/WhYModemCli receive --protocol ymodem --port /tmp/whymodem_gui --output /tmp/recv
+```
+
+
+
 ## 虚拟串口
 
 用 `socat` 创建一对互通的虚拟串口：

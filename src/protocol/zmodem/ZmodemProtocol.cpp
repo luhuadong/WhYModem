@@ -93,6 +93,13 @@ void ZmodemProtocol::startReceiver()
         receiver->setFileDirPath(filePath);
     }
 
+    QObject::connect(receiver.get(), &QRecvZmodem::approver, this,
+        [](const char *, size_t, time_t, bool *ret) {
+            if(ret)
+            {
+                *ret = true;
+            }
+        }, Qt::DirectConnection);
     QObject::connect(receiver.get(), &QRecvZmodem::sendData, this, &ZmodemProtocol::enqueueOutput, Qt::QueuedConnection);
     QObject::connect(receiver.get(), &QRecvZmodem::flushSend, this, &ZmodemProtocol::drainOutput, Qt::QueuedConnection);
     QObject::connect(receiver.get(), &QRecvZmodem::flushRecv, this, &ZmodemProtocol::discardInput, Qt::QueuedConnection);

@@ -160,15 +160,15 @@ YMODEM 在 block0 中携带文件名和文件大小，因此接收端可以按�
 5. 发送 `EOT`。
 6. 等待接收端 `ACK` 后继续等待 `C`。
 7. 收到 `C` 后发送最终空 block。
-8. 等待最终 `ACK`，标记传输完成。
+8. 最终空 block 写出后标记传输完成；如果对端继续发送最终 `ACK`，可以忽略。
 
 这里需要特别注意第 6 步和第 7 步。`lrzsz rb` 的常见收尾顺序是：
 
 ```text
-EOT -> ACK -> C -> empty block -> ACK
+EOT -> ACK -> C -> empty block -> optional ACK
 ```
 
-发送端不能在收到 `ACK` 时立即发送最终空 block，否则可能把随后到来的 `C` 留到下一阶段并误判为重传请求，最终导致 GUI 端等待超时。
+发送端不能在收到 `ACK` 时立即发送最终空 block，否则可能把随后到来的 `C` 留到下一阶段并误判为重传请求，最终导致 GUI 端等待超时。`lrzsz rb` 在文件已经完整落盘后可能不再返回最终空 block 的 `ACK`，因此 WhYModem 在收到 `C` 并写出最终空 block 后即可标记发送完成，不强依赖这个最终 `ACK`。
 
 接收端在收到 `EOT` 后会回复 `ACK` 和 `C`，随后等待发送端发出批量传输结束的空文件名 block。常见实现会用 `SOH` 发送 128 字节空 block，但 `lrzsz sb` 在部分场景下可能发送 `STX` 形式的 1024 字节空 block。WhYModem 接收端同时接受这两种结束 block，但仍要求块号为 `0`、反码为 `0xFF`、文件名首字节为 `0x00`，并且 CRC 校验正确，才回复 `ACK` 并标记接收完成。
 
@@ -178,7 +178,7 @@ EOT -> ACK -> C -> empty block -> ACK
 
 ## 8. ZMODEM 实现细节
 
-ZMODEM 通过 `ZmodemProtocol` 适配第三方 qzmodem 实现。ZMODEM 支持文件名、文件大小、批量文件和更复杂的自动握手流程。
+ZMODEM 通过 `ZmodemProtocol` 适配第三方 qzmodem 实现。ZMODEM 支持文件名、文件大小、批量文件和更复杂的自动握手流程。接收端会连接 qzmodem 的 `approver` 回调并接受文件，由 qzmodem 根据保存目录创建文件；否则 `sz` 发送端会看到 `skipped`，接收端不会落盘。
 
 使用 `lrzsz` 测试时要注意启动顺序：
 

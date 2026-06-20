@@ -1641,6 +1641,8 @@ void Ymodem::transmitStageFinishing()
       txBuffer[YMODEM_PACKET_SIZE + YMODEM_PACKET_OVERHEAD - 1] = (uint8_t)(crc >> 0);
       txLength                                                  = YMODEM_PACKET_SIZE + YMODEM_PACKET_OVERHEAD;
       write(txBuffer, txLength);
+      stage = StageNone;
+      callback(StatusFinish, NULL, NULL);
 
       break;
     }

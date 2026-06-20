@@ -11,14 +11,10 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets SerialPort)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets SerialPort)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets SerialPort)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets SerialPort)
 
-set(PROJECT_SOURCES
-    src/main.cpp
-    src/ui/widget.cpp
-    src/ui/widget.h
-    src/ui/widget.ui
+set(WHYMODEM_TRANSFER_SOURCES
     src/protocol/ITransferProtocol.h
     src/protocol/xmodem/XmodemProtocol.cpp
     src/protocol/xmodem/XmodemProtocol.h
@@ -45,22 +41,39 @@ set(PROJECT_SOURCES
     src/transfer/FileTransmitter.h
     src/transfer/ProtocolFactory.cpp
     src/transfer/ProtocolFactory.h
+)
+
+set(WHYMODEM_GUI_SOURCES
+    src/main.cpp
+    src/ui/widget.cpp
+    src/ui/widget.h
+    src/ui/widget.ui
     resources/resources.qrc
 )
 
-add_executable(WhYModem WIN32 ${PROJECT_SOURCES})
-
-target_include_directories(WhYModem
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem/util
+add_executable(WhYModem WIN32
+    ${WHYMODEM_GUI_SOURCES}
+    ${WHYMODEM_TRANSFER_SOURCES}
 )
 
-target_compile_definitions(WhYModem
-    PRIVATE
-        WHYMODEM_VERSION="${PROJECT_VERSION}"
+add_executable(WhYModemCli
+    tools/whymodem_cli.cpp
+    ${WHYMODEM_TRANSFER_SOURCES}
 )
+
+foreach(target WhYModem WhYModemCli)
+    target_include_directories(${target}
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/zmodem/qzmodem/util
+    )
+
+    target_compile_definitions(${target}
+        PRIVATE
+            WHYMODEM_VERSION="${PROJECT_VERSION}"
+    )
+endforeach()
 
 target_link_libraries(WhYModem
     PRIVATE
@@ -68,7 +81,13 @@ target_link_libraries(WhYModem
         Qt${QT_VERSION_MAJOR}::SerialPort
 )
 
-install(TARGETS WhYModem
+target_link_libraries(WhYModemCli
+    PRIVATE
+        Qt${QT_VERSION_MAJOR}::Core
+        Qt${QT_VERSION_MAJOR}::SerialPort
+)
+
+install(TARGETS WhYModem WhYModemCli
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
@@ -83,6 +102,7 @@ install(FILES packaging/io.geekat.WhYModem.desktop
 
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(WhYModem)
+    qt_finalize_executable(WhYModemCli)
 endif()
 
 set(CPACK_GENERATOR "DEB")
