@@ -393,7 +393,11 @@ void XmodemProtocol::transmitStageFinishing()
             }
             reset();
             break;
-        default:
+
+        case CodeNak:
+            txBuffer[0] = CodeEot;
+            writeCallback(txBuffer, 1);
+            timeCount = 0;
             if(++errorCount > ErrorMax)
             {
                 if(protocolCallback)
@@ -402,7 +406,29 @@ void XmodemProtocol::transmitStageFinishing()
                 }
                 reset();
             }
-            else
+            break;
+
+        case CodeCan:
+            if(++cancelCount >= CanAbortCount)
+            {
+                if(protocolCallback)
+                {
+                    protocolCallback(StatusAbort, 0, 0);
+                }
+                reset();
+            }
+            break;
+
+        default:
+            if(++timeCount > TimeMax)
+            {
+                if(protocolCallback)
+                {
+                    protocolCallback(StatusTimeout, 0, 0);
+                }
+                reset();
+            }
+            else if((timeCount % HandshakeInterval) == 0)
             {
                 txBuffer[0] = CodeEot;
                 writeCallback(txBuffer, 1);

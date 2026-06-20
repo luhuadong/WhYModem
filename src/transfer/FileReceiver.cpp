@@ -75,6 +75,12 @@ void FileReceiver::setPortBaudRate(qint32 baudrate)
 
 bool FileReceiver::startReceive()
 {
+    readTimer->stop();
+    writeTimer->stop();
+    serialPort->close();
+    file->close();
+    configureProtocol();
+
     progress = 0;
     status   = ITransferProtocol::StatusEstablish;
     fileSize = 0;
@@ -342,6 +348,7 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
 
         case ITransferProtocol::StatusTimeout:
         {
+            file->close();
             pendingXmodemBlock.clear();
 
             FileReceiver::status = ITransferProtocol::StatusTimeout;

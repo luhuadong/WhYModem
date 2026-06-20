@@ -81,8 +81,16 @@ void FileTransmitter::setTransferDelays(int firstDataDelayMs, int interPacketDel
 
 bool FileTransmitter::startTransmit()
 {
+    readTimer->stop();
+    writeTimer->stop();
+    serialPort->close();
+    file->close();
+    configureProtocol();
+
     progress = 0;
     status   = ITransferProtocol::StatusEstablish;
+    fileSize = 0;
+    fileCount = 0;
     filteredRx.clear();
     txEcho.clear();
     txEchoOffset = 0;
@@ -280,6 +288,8 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
 
         case ITransferProtocol::StatusTimeout:
         {
+            file->close();
+
             FileTransmitter::status = ITransferProtocol::StatusTimeout;
 
             writeTimer->start(WRITE_TIME_OUT);
@@ -399,6 +409,11 @@ void FileTransmitter::appendFilteredRx(const QByteArray &data)
 
 void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
 {
+    if(protocolKind != ProtocolKind::Ymodem)
+    {
+        return;
+    }
+
     if(len < 3)
     {
         return;
