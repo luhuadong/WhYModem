@@ -103,9 +103,12 @@ bool FileReceiver::startReceive()
 void FileReceiver::stopReceive()
 {
     const bool transferOpened = file->isOpen() || pendingXmodemBlock.isEmpty() != true;
+    const bool protocolActive = transferOpened ||
+                                status == ITransferProtocol::StatusEstablish ||
+                                status == ITransferProtocol::StatusTransmit;
     file->close();
     pendingXmodemBlock.clear();
-    if(protocol && transferOpened)
+    if(protocol && protocolActive)
     {
         protocol->abort();
     }

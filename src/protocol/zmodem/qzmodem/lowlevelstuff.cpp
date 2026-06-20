@@ -921,7 +921,7 @@ void LowLevelStuff::zm_ackbibi(void) {
   for (; --n >= 0;) {
     zreadline_flushline();
     zm_send_hex_header(ZFIN);
-    switch (zreadline_getc(100)) {
+    switch (zreadline_getc(10)) {
     case 'O':
       zreadline_getc(1); /* Discard 2nd 'O' */
 #ifdef DEBUGZ

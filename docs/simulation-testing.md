@@ -41,9 +41,12 @@ cmake --build build --target WhYModemCli
 
 ```bash
 tools/run_lrzsz_matrix.sh --protocols xmodem,ymodem,zmodem --keep-work
+
+# 包含负向测试：例如 ZMODEM 发送时对端 rz 未启动，必须失败而不是误报成功
+tools/run_lrzsz_matrix.sh --protocols zmodem --include-negative --keep-work
 ```
 
-脚本会为每个 case 重启一对 `socat` 虚拟串口，并测试 6 个方向：
+脚本会为每个正常 case 重启一对 `socat` 虚拟串口，并测试 6 个方向：
 
 ```text
 WhYModemCli send XMODEM -> rx

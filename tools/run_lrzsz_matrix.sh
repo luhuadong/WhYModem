@@ -7,6 +7,7 @@ WORK_DIR=""
 PROTOCOLS="xmodem,ymodem,zmodem"
 TIMEOUT_SEC=45
 KEEP_WORK=0
+INCLUDE_NEGATIVE=0
 
 usage() {
     cat <<USAGE
@@ -18,41 +19,21 @@ Options:
   --protocols LIST     Comma-separated list: xmodem,ymodem,zmodem (default: all)
   --timeout-sec SEC    Per-process timeout in seconds (default: 45)
   --keep-work          Keep generated work directory after success
+  --include-negative   Also run negative tests such as ZMODEM send without rz
   -h, --help           Show this help
 USAGE
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --cli-bin)
-            CLI_BIN="$2"
-            shift 2
-            ;;
-        --work-dir)
-            WORK_DIR="$2"
-            shift 2
-            ;;
-        --protocols)
-            PROTOCOLS="$2"
-            shift 2
-            ;;
-        --timeout-sec)
-            TIMEOUT_SEC="$2"
-            shift 2
-            ;;
-        --keep-work)
-            KEEP_WORK=1
-            shift
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        *)
-            echo "unknown option: $1" >&2
-            usage >&2
-            exit 2
-            ;;
+        --cli-bin) CLI_BIN="$2"; shift 2 ;;
+        --work-dir) WORK_DIR="$2"; shift 2 ;;
+        --protocols) PROTOCOLS="$2"; shift 2 ;;
+        --timeout-sec) TIMEOUT_SEC="$2"; shift 2 ;;
+        --keep-work) KEEP_WORK=1; shift ;;
+        --include-negative) INCLUDE_NEGATIVE=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
@@ -79,6 +60,7 @@ GUI_PORT="$WORK_DIR/whymodem_gui"
 CLI_PORT="$WORK_DIR/whymodem_cli"
 SOCAT_PID=""
 FAILURES=0
+FIXTURE_DIR=""
 
 cleanup() {
     if [[ -n "$SOCAT_PID" ]] && kill -0 "$SOCAT_PID" >/dev/null 2>&1; then
@@ -296,6 +278,20 @@ test_cli_receive_zmodem() {
     cmp "$src" "$outdir/$(basename "$src")"
 }
 
+test_cli_send_zmodem_without_rz() {
+    start_socat || return 1
+    local src="$FIXTURE_DIR/firmware.bin"
+    local outdir="$WORK_DIR/zmodem-send-no-rz"
+    mkdir -p "$outdir"
+
+    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol zmodem --port "$GUI_PORT" --file "$src" \
+        --timeout-ms "$(cli_timeout_ms)" --raw-log "$outdir/cli.raw" \
+        > "$outdir/cli.log" 2>&1
+    local cli_rc=$?
+
+    [[ "$cli_rc" -ne 0 ]]
+}
+
 make_fixtures
 
 echo "work dir: $WORK_DIR"
@@ -315,6 +311,10 @@ fi
 if has_protocol zmodem; then
     run_case "cli send ZMODEM -> rz" test_cli_send_zmodem
     run_case "sz -> cli receive ZMODEM" test_cli_receive_zmodem
+fi
+
+if [[ "$INCLUDE_NEGATIVE" -eq 1 ]]; then
+    run_case "cli send ZMODEM without rz should fail" test_cli_send_zmodem_without_rz
 fi
 
 if [[ "$FAILURES" -eq 0 ]]; then

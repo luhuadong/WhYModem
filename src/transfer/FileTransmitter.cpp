@@ -19,8 +19,8 @@ FileTransmitter::FileTransmitter(QObject *parent) :
     status(ITransferProtocol::StatusEstablish),
     fileSize(0),
     fileCount(0),
-    firstDataDelayMs(500),
-    interPacketDelayMs(500),
+    firstDataDelayMs(0),
+    interPacketDelayMs(0),
     txEchoOffset(0)
 {
     serialPort->setPortName("COM1");
@@ -269,7 +269,9 @@ ITransferProtocol::Reply FileTransmitter::callback(Status status, uint8_t *buff,
                 file->close();
             }
 
+            progress = 100;
             FileTransmitter::status = ITransferProtocol::StatusFinish;
+            transmitProgress(progress);
 
             writeTimer->start(WRITE_TIME_OUT);
 
@@ -410,6 +412,10 @@ void FileTransmitter::appendFilteredRx(const QByteArray &data)
 
 void FileTransmitter::delayBeforePacket(const uint8_t *buff, uint32_t len)
 {
+    if(firstDataDelayMs == 0 && interPacketDelayMs == 0)
+    {
+        return;
+    }
     if(protocolKind != ProtocolKind::Ymodem)
     {
         return;

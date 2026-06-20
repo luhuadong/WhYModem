@@ -125,7 +125,7 @@ XMODEM 发送完最后一个数据包并收到 ACK 后，发送端会发送 `EOT
 
 ### 6.5 发送端分包节奏
 
-XMODEM 使用 128 字节小包时，不能套用 YMODEM 为部分 Bootloader 预留的包间延迟。WhYModem 的发送端只对 YMODEM 数据包执行 `firstDataDelayMs` 和 `interPacketDelayMs` 延迟；XMODEM 数据包不做额外 sleep，避免 `rx` 因传输过慢进入超时重试状态。
+WhYModem 默认不对 XMODEM、YMODEM、ZMODEM 数据包添加额外包间延迟，由协议状态机和串口写完成事件控制节奏。`firstDataDelayMs` 和 `interPacketDelayMs` 仍保留为内部参数，便于后续兼容特殊设备，但默认值为 `0`，GUI 和 CLI 行为保持一致。
 
 ### 6.6 与 lrzsz 对传
 
@@ -178,7 +178,9 @@ EOT -> ACK -> C -> empty block -> optional ACK
 
 ## 8. ZMODEM 实现细节
 
-ZMODEM 通过 `ZmodemProtocol` 适配第三方 qzmodem 实现。ZMODEM 支持文件名、文件大小、批量文件和更复杂的自动握手流程。接收端会连接 qzmodem 的 `approver` 回调并接受文件，由 qzmodem 根据保存目录创建文件；否则 `sz` 发送端会看到 `skipped`，接收端不会落盘。
+ZMODEM 通过 `ZmodemProtocol` 适配第三方 qzmodem 实现。ZMODEM 支持文件名、文件大小、批量文件和更复杂的自动握手流程。接收端会连接 qzmodem 的 `approver` 回调并接受文件，由 qzmodem 根据保存目录创建文件；否则 `sz` 发送端会看到 `skipped`，接收端不会落盘。发送或接收进入完成状态后，UI 进度统一补到 `100%`，并忽略 qzmodem 线程迟到的 tick 进度，避免出现“传输成功但进度停在 95%/99%”的显示问题。qzmodem 的线程 `finished` 信号只表示 worker 退出，不一定表示协议成功；WhYModem 只有在收到 qzmodem 的成功 `complete` 回调后，才会把 `finished` 转换成 `StatusFinish`。如果对端 `rz` 没有启动、超时或被取消，worker 退出会被上报为失败。
+
+ZMODEM 接收完成后还需要执行会话结束握手。接收端收到文件 EOF 并完成落盘后，会继续等待发送端的 `ZFIN`，随后回发 `ZFIN` 并短暂等待 `OO`。部分 `lrzsz sz` 场景下，发送端已经打印 `Transfer complete`，但接收端仍可能在等待这个结束确认；这不是文件校验耗时。WhYModem 将最后的 `OO` 等待限制在约 1 秒，避免文件已经完成后 UI 继续卡住好几秒。
 
 使用 `lrzsz` 测试时要注意启动顺序：
 

@@ -10,7 +10,8 @@ ZmodemProtocol::ZmodemProtocol() :
     mode(ModeIdle),
     started(false),
     completionReported(false),
-    lastProgressBytes(0)
+    lastProgressBytes(0),
+    transferCompleted(false)
 {
 }
 
@@ -66,22 +67,18 @@ void ZmodemProtocol::transmit()
 
 void ZmodemProtocol::abort()
 {
-    if(sender)
-    {
-        sender->requestStop();
-    }
-    if(receiver)
-    {
-        receiver->requestStop();
-    }
+    const bool active = mode != ModeIdle && mode != ModeFinished && mode != ModeError;
 
-    if(mode != ModeIdle && mode != ModeFinished && mode != ModeError)
-    {
-        reportStatus(StatusAbort);
-    }
+    cleanupWorkers();
 
     mode = ModeIdle;
     started = false;
+    transferCompleted = false;
+
+    if(active)
+    {
+        reportStatus(StatusAbort);
+    }
 }
 
 void ZmodemProtocol::startReceiver()
@@ -105,7 +102,11 @@ void ZmodemProtocol::startReceiver()
     QObject::connect(receiver.get(), &QRecvZmodem::flushRecv, this, &ZmodemProtocol::discardInput, Qt::QueuedConnection);
     QObject::connect(receiver.get(), &QRecvZmodem::resetRecv, this, &ZmodemProtocol::discardInput, Qt::QueuedConnection);
     QObject::connect(receiver.get(), &QRecvZmodem::complete, this, [this](QString, int result, size_t, time_t) {
-        if(result != 0)
+        if(result == 0)
+        {
+            transferCompleted = true;
+        }
+        else
         {
             mode = ModeError;
             reportStatus(StatusError);
@@ -119,14 +120,23 @@ void ZmodemProtocol::startReceiver()
     QObject::connect(receiver.get(), &QRecvZmodem::finished, this, [this]() {
         if(mode != ModeError && !completionReported)
         {
-            mode = ModeFinished;
-            reportStatus(StatusFinish);
+            if(transferCompleted)
+            {
+                mode = ModeFinished;
+                reportStatus(StatusFinish);
+            }
+            else
+            {
+                mode = ModeError;
+                reportStatus(StatusError);
+            }
         }
     }, Qt::QueuedConnection);
 
     mode = ModeReceiving;
     started = true;
     completionReported = false;
+    transferCompleted = false;
     lastProgressBytes = 0;
     reportStatus(StatusEstablish);
     receiver->start();
@@ -143,7 +153,11 @@ void ZmodemProtocol::startTransmitter()
     QObject::connect(sender.get(), &QSendZmodem::flushRecv, this, &ZmodemProtocol::discardInput, Qt::QueuedConnection);
     QObject::connect(sender.get(), &QSendZmodem::resetRecv, this, &ZmodemProtocol::discardInput, Qt::QueuedConnection);
     QObject::connect(sender.get(), &QSendZmodem::complete, this, [this](QString, int result, size_t, time_t) {
-        if(result != 0)
+        if(result == 0)
+        {
+            transferCompleted = true;
+        }
+        else
         {
             mode = ModeError;
             reportStatus(StatusError);
@@ -157,14 +171,23 @@ void ZmodemProtocol::startTransmitter()
     QObject::connect(sender.get(), &QSendZmodem::finished, this, [this]() {
         if(mode != ModeError && !completionReported)
         {
-            mode = ModeFinished;
-            reportStatus(StatusFinish);
+            if(transferCompleted)
+            {
+                mode = ModeFinished;
+                reportStatus(StatusFinish);
+            }
+            else
+            {
+                mode = ModeError;
+                reportStatus(StatusError);
+            }
         }
     }, Qt::QueuedConnection);
 
     mode = ModeTransmitting;
     started = true;
     completionReported = false;
+    transferCompleted = false;
     lastProgressBytes = 0;
     reportStatus(StatusEstablish);
     sender->start();
@@ -279,7 +302,7 @@ void ZmodemProtocol::reportStatus(Status status)
 
 void ZmodemProtocol::reportProgress(long bytesDone, long bytesTotal)
 {
-    if(!protocolCallback)
+    if(!protocolCallback || completionReported || mode == ModeFinished || mode == ModeError || mode == ModeIdle)
     {
         return;
     }

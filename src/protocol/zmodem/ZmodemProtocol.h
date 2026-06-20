@@ -64,6 +64,7 @@ private:
     QByteArray outgoing;
     QMutex outgoingMutex;
     long lastProgressBytes;
+    bool transferCompleted;
 };
 
 #endif // ZMODEMPROTOCOL_H
