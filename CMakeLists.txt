@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(WhYModem VERSION 0.2.0 LANGUAGES CXX)
+project(WhYModem VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 

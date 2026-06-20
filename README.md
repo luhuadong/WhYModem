@@ -82,8 +82,25 @@ sudo cmake --install build --prefix /usr/local
 安装内容包括：
 
 * 可执行文件：`/usr/local/bin/WhYModem`
-* 桌面入口：`/usr/local/share/applications/io.geekat.WhYModem.desktop`
-* 图标：`/usr/local/share/icons/hicolor/512x512/apps/io.geekat.WhYModem.png`
+* 桌面入口：`/usr/local/share/applications/io.geekat.whymodem.desktop`
+* 图标：`/usr/local/share/icons/hicolor/512x512/apps/io.geekat.whymodem.png`
+
+Ubuntu 24.04 的 GNOME Shell 对 desktop 文件和图标缓存更严格。若安装后应用菜单或 Dock 仍显示默认图标，可以刷新桌面数据库和 hicolor 图标缓存：
+
+```bash
+sudo update-desktop-database /usr/local/share/applications
+sudo gtk-update-icon-cache -f -t /usr/local/share/icons/hicolor
+```
+
+如果之前安装过旧版本的大写图标名，也可以清理旧文件后重新安装：
+
+```bash
+sudo rm -f /usr/local/share/applications/io.geekat.WhYModem.desktop
+sudo rm -f /usr/local/share/icons/hicolor/512x512/apps/io.geekat.WhYModem.png
+sudo cmake --install build --prefix /usr/local
+```
+
+若仍未刷新，注销后重新登录，或重启 GNOME Shell。
 
 ### 串口权限
 
@@ -152,7 +169,7 @@ cmake --build build --target package
 sudo apt install ./dist/*.deb
 ```
 
-deb 包会安装可执行文件、桌面入口和 512x512 PNG 图标。安装完成后可以在 Ubuntu 应用菜单中搜索 `WhYModem`，也可以启动后固定到 Dock。
+deb 包会安装可执行文件、桌面入口和 512x512 PNG 图标。deb 包默认安装到 `/usr`，图标名和 desktop 文件名使用小写的 `io.geekat.whymodem`，以兼容 Ubuntu 24.04 的桌面图标缓存。安装完成后可以在 Ubuntu 应用菜单中搜索 `WhYModem`，也可以启动后固定到 Dock。
 
 ## 已验证结果
 
