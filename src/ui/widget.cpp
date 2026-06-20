@@ -87,6 +87,7 @@ Widget::Widget(QWidget *parent) :
     rxLayout->addLayout(toolbarLayout);
     ui->verticalLayout_3->addWidget(rxGroup);
 
+    ui->comPort->setEditable(true);
     refreshSerialPorts();
 
     serialPort->setPortName("COM1");
@@ -575,6 +576,11 @@ void Widget::refreshSerialPorts()
     if(currentIndex >= 0)
     {
         ui->comPort->setCurrentIndex(currentIndex);
+    }
+    else if(currentPort.isEmpty() != true)
+    {
+        ui->comPort->addItem(currentPort);
+        ui->comPort->setCurrentText(currentPort);
     }
     else if(ui->comPort->count() > 0)
     {
