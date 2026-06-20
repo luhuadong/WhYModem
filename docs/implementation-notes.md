@@ -85,15 +85,19 @@ WhYModem 的 XMODEM 接收端采用“延迟写最后一包”的策略：
 
 需要注意：这是 XMODEM 场景下的兼容性取舍。如果原始二进制文件本身确实以一个或多个 `0x1A` 字节结尾，标准 XMODEM 无法区分这些字节是文件内容还是 padding。对于必须严格保留尾部 `0x1A` 的文件，建议使用 YMODEM 或 ZMODEM。
 
-### 4.3 接收文件名
+### 4.3 接收文件名和保存路径
 
-XMODEM 不携带文件名。WhYModem 接收 XMODEM 时会自动生成文件名：
+XMODEM 不携带文件名。WhYModem 的“保存路径”输入框在 XMODEM 下优先表示完整输出文件路径；用户可以通过浏览按钮选择或输入例如 `/home/user/Downloads/test.log`、`C:\\Users\\user\\Downloads\\firmware.bin` 这样的保存文件名。
+
+如果保存路径指向一个已存在目录，或没有指定完整文件名，WhYModem 接收 XMODEM 时会自动生成文件名：
 
 ```text
 xmodem-yyyyMMdd-hhmmss.bin
 ```
 
-`.bin` 后缀只是默认保存名，不会改变文件内容。如果接收的是日志文本，可以手动改成 `.log` 后缀再查看。
+`.bin` 后缀只是默认保存名，不会改变文件内容。如果接收的是日志文本，可以在 XMODEM 接收前直接把保存路径指定为 `.log` 文件，或接收后手动改成 `.log` 后缀再查看。
+
+YMODEM 和 ZMODEM 会携带文件名，因此“保存路径”在这两个协议下表示保存目录。路径处理使用 Qt 的 `QDir` 和 `QFileInfo`，避免手写路径分隔符，以保持 Linux 和 Windows 兼容。
 
 ### 4.4 与 lrzsz 对传
 

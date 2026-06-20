@@ -1,5 +1,7 @@
 #include "FileReceiver.h"
 #include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 
 #define READ_TIME_OUT   (10)
 #define WRITE_TIME_OUT  (100)
@@ -49,10 +51,15 @@ void FileReceiver::setProtocolKind(ProtocolKind kind)
 
 void FileReceiver::setFilePath(const QString &path)
 {
-    filePath = path + "/";
+    filePath = QDir::cleanPath(path);
+    if(filePath == ".")
+    {
+        filePath.clear();
+    }
+
     if(protocol)
     {
-        protocol->setFilePath(path);
+        protocol->setFilePath(filePath);
     }
 }
 
@@ -167,7 +174,7 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
                 fileSize  = sizeStr.toULongLong();
                 fileCount = 0;
 
-                file->setFileName(filePath + fileName);
+                file->setFileName(QDir(filePath).filePath(fileName));
 
                 if(file->open(QFile::WriteOnly) == true)
                 {
@@ -192,7 +199,16 @@ ITransferProtocol::Reply FileReceiver::callback(Status status, uint8_t *buff, ui
                            QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".bin";
                 fileSize = 0;
                 fileCount = 0;
-                file->setFileName(filePath + fileName);
+
+                if(protocolKind == ProtocolKind::Xmodem && filePath.isEmpty() != true && QFileInfo(filePath).isDir() != true)
+                {
+                    file->setFileName(filePath);
+                    fileName = QFileInfo(filePath).fileName();
+                }
+                else
+                {
+                    file->setFileName(QDir(filePath).filePath(fileName));
+                }
 
                 if(file->open(QFile::WriteOnly) == true)
                 {

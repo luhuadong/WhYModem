@@ -121,6 +121,13 @@ Widget::Widget(QWidget *parent) :
             renderRxCache();
         }
     });
+    connect(ui->receivePath, &QLineEdit::textChanged, this, [this](const QString &text) {
+        if(receiveButtonStatus == false)
+        {
+            ui->receiveButton->setEnabled(text.isEmpty() != true);
+        }
+    });
+
     connect(clearRx, &QPushButton::clicked, this, [this]() {
         rxLines.clear();
         currentRxLine.clear();
@@ -199,7 +206,26 @@ void Widget::on_transmitBrowse_clicked()
 
 void Widget::on_receiveBrowse_clicked()
 {
-    ui->receivePath->setText(QFileDialog::getExistingDirectory(this, u8"选择目录", ".", QFileDialog::ShowDirsOnly));
+    QString path;
+    if(ProtocolFactory::fromName(ui->protocol->currentText()) == ProtocolKind::Xmodem)
+    {
+        path = QFileDialog::getSaveFileName(this,
+                                            u8"选择保存文件",
+                                            ui->receivePath->text().isEmpty() ? "." : ui->receivePath->text(),
+                                            u8"任意文件 (*.*)");
+    }
+    else
+    {
+        path = QFileDialog::getExistingDirectory(this,
+                                                u8"选择保存目录",
+                                                ui->receivePath->text().isEmpty() ? "." : ui->receivePath->text(),
+                                                QFileDialog::ShowDirsOnly);
+    }
+
+    if(path.isEmpty() != true)
+    {
+        ui->receivePath->setText(path);
+    }
 
     if(ui->receivePath->text().isEmpty() != true)
     {
@@ -229,6 +255,7 @@ void Widget::on_transmitButton_clicked()
             ui->comButton->setDisabled(true);
             ui->refreshButton->setDisabled(true);
 
+            ui->receivePath->setDisabled(true);
             ui->receiveBrowse->setDisabled(true);
             ui->receiveButton->setDisabled(true);
 
@@ -268,6 +295,7 @@ void Widget::on_receiveButton_clicked()
             ui->transmitBrowse->setDisabled(true);
             ui->transmitButton->setDisabled(true);
 
+            ui->receivePath->setDisabled(true);
             ui->receiveBrowse->setDisabled(true);
             ui->receiveButton->setText(u8"取消");
             ui->receiveProgress->setValue(0);
@@ -314,6 +342,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->comButton->setEnabled(true);
             ui->refreshButton->setEnabled(true);
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
 
             if(ui->receivePath->text().isEmpty() != true)
@@ -336,6 +365,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->comButton->setEnabled(true);
             ui->refreshButton->setEnabled(true);
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
 
             if(ui->receivePath->text().isEmpty() != true)
@@ -358,6 +388,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->comButton->setEnabled(true);
             ui->refreshButton->setEnabled(true);
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
 
             if(ui->receivePath->text().isEmpty() != true)
@@ -380,6 +411,7 @@ void Widget::transmitStatus(FileTransmitter::Status status)
             ui->comButton->setEnabled(true);
             ui->refreshButton->setEnabled(true);
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
 
             if(ui->receivePath->text().isEmpty() != true)
@@ -423,6 +455,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
 
@@ -445,6 +478,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
 
@@ -467,6 +501,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
 
@@ -489,6 +524,7 @@ void Widget::receiveStatus(FileReceiver::Status status)
                 ui->transmitButton->setEnabled(true);
             }
 
+            ui->receivePath->setEnabled(true);
             ui->receiveBrowse->setEnabled(true);
             ui->receiveButton->setText(u8"接收");
 
