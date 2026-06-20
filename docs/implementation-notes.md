@@ -27,6 +27,30 @@ Widget
 
 超时和中止路径也会关闭对应文件句柄，确保下一轮传输可以重新从文件开头开始。
 
+### 2.1 配置文件
+
+WhYModem 使用 Qt 的 `QSettings` 以 ini 格式保存应用配置。程序启动时会自动创建默认配置文件；GUI 每次开始发送前都会重新读取配置，因此修改并保存 ini 后，下次发送即可生效。
+
+常见保存位置：
+
+```text
+Linux:   ~/.config/WhYModem/WhYModem.ini
+Windows: %APPDATA%\WhYModem\WhYModem.ini
+```
+
+默认内容：
+
+```ini
+[Transmit]
+FirstDataDelayMs=0
+InterPacketDelayMs=0
+```
+
+这两个值单位都是毫秒，负数会按 `0` 处理。当前发送延迟只作用于 YMODEM 数据包：`FirstDataDelayMs` 用于第一个数据包，`InterPacketDelayMs` 用于后续数据包。使用 `lrzsz` 或虚拟串口回归测试时建议保持 `0`；如果单片机 Bootloader 处理速度较慢，可以先尝试 `500` 和 `500`。
+
+CLI 默认读取同一份配置文件，也可以用 `--first-delay-ms` 和 `--inter-delay-ms` 对单次发送进行覆盖。
+
+
 ## 3. 串口与虚拟串口
 
 串口列表来自 `QSerialPortInfo::availablePorts()`。Linux 下该接口通常能发现 `/dev/ttyUSB*`、`/dev/ttyACM*`、`/dev/ttyS*` 等真实串口，但不一定枚举 `socat` 创建的 `/dev/pts/*` 伪终端。
@@ -125,7 +149,7 @@ XMODEM 发送完最后一个数据包并收到 ACK 后，发送端会发送 `EOT
 
 ### 6.5 发送端分包节奏
 
-WhYModem 默认不对 XMODEM、YMODEM、ZMODEM 数据包添加额外包间延迟，由协议状态机和串口写完成事件控制节奏。`firstDataDelayMs` 和 `interPacketDelayMs` 仍保留为内部参数，便于后续兼容特殊设备，但默认值为 `0`，GUI 和 CLI 行为保持一致。
+WhYModem 默认不对 XMODEM、YMODEM、ZMODEM 数据包添加额外包间延迟，由协议状态机和串口写完成事件控制节奏。配置文件中的 `FirstDataDelayMs` 和 `InterPacketDelayMs` 用于兼容处理速度较慢的 YMODEM 接收端，当前只作用于 YMODEM 的数据包发送；XMODEM 和 ZMODEM 不套用这两个延迟。
 
 ### 6.6 与 lrzsz 对传
 

@@ -66,6 +66,8 @@ build/WhYModemCli send --protocol ymodem --port /tmp/whymodem_gui --file firmwar
 build/WhYModemCli receive --protocol ymodem --port /tmp/whymodem_gui --output /tmp/recv
 ```
 
+CLI 默认读取 WhYModem 的 ini 配置文件。发送方向可以用 `--first-delay-ms` 和 `--inter-delay-ms` 覆盖单次运行的 YMODEM 发送延迟；自动矩阵脚本会显式传入 `0`，避免用户为了单片机调大的延迟影响 `lrzsz` 回归速度。
+
 
 
 ## 虚拟串口

@@ -7,6 +7,7 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include "config/AppConfig.h"
 #include "transfer/FileReceiver.h"
 #include "transfer/FileTransmitter.h"
 #include "transfer/ProtocolFactory.h"
@@ -78,6 +79,7 @@ int parseIntOption(const QCommandLineParser &parser, const QCommandLineOption &o
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+    QCoreApplication::setOrganizationName("GeekAt");
     QCoreApplication::setApplicationName("WhYModemCli");
     QCoreApplication::setApplicationVersion(WHYMODEM_VERSION);
 
@@ -97,8 +99,8 @@ int main(int argc, char *argv[])
     const QCommandLineOption fileOpt(QStringList() << "f" << "file", "File to send.", "file");
     const QCommandLineOption outputOpt(QStringList() << "o" << "output", "Receive output file for XMODEM, or output directory for YMODEM/ZMODEM.", "path");
     const QCommandLineOption timeoutOpt(QStringList() << "timeout-ms", "Overall operation timeout in milliseconds.", "ms", "60000");
-    const QCommandLineOption firstDelayOpt(QStringList() << "first-delay-ms", "YMODEM first data packet delay in milliseconds for send mode.", "ms", "0");
-    const QCommandLineOption interDelayOpt(QStringList() << "inter-delay-ms", "YMODEM data packet interval in milliseconds for send mode.", "ms", "0");
+    const QCommandLineOption firstDelayOpt(QStringList() << "first-delay-ms", "Override configured YMODEM first data packet delay in milliseconds for send mode.", "ms");
+    const QCommandLineOption interDelayOpt(QStringList() << "inter-delay-ms", "Override configured YMODEM data packet interval in milliseconds for send mode.", "ms");
     const QCommandLineOption rawLogOpt(QStringList() << "raw-log", "Write raw serial bytes received by WhYModem to this file.", "file");
     const QCommandLineOption quietOpt(QStringList() << "q" << "quiet", "Only print terminal status.");
 
@@ -145,8 +147,13 @@ int main(int argc, char *argv[])
 
     const ProtocolKind protocol = ProtocolFactory::fromName(parser.value(protocolOpt));
     const int timeoutMs = parseIntOption(parser, timeoutOpt, 60000);
-    const int firstDelayMs = parseIntOption(parser, firstDelayOpt, 0);
-    const int interDelayMs = parseIntOption(parser, interDelayOpt, 0);
+    const TransmitDelayConfig configuredDelays = AppConfig::transmitDelays();
+    const int firstDelayMs = parser.isSet(firstDelayOpt)
+                                 ? parseIntOption(parser, firstDelayOpt, configuredDelays.firstDataDelayMs)
+                                 : configuredDelays.firstDataDelayMs;
+    const int interDelayMs = parser.isSet(interDelayOpt)
+                                 ? parseIntOption(parser, interDelayOpt, configuredDelays.interPacketDelayMs)
+                                 : configuredDelays.interPacketDelayMs;
 
     QFile rawLog;
     if(parser.isSet(rawLogOpt))

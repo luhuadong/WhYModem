@@ -1,5 +1,6 @@
 ﻿#include "widget.h"
 #include "ui_widget.h"
+#include "config/AppConfig.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QSerialPortInfo>
@@ -89,6 +90,7 @@ Widget::Widget(QWidget *parent) :
 
     ui->comPort->setEditable(true);
     refreshSerialPorts();
+    AppConfig::ensureConfigFile();
 
     serialPort->setPortName("COM1");
     serialPort->setBaudRate(115200);
@@ -247,6 +249,9 @@ void Widget::on_transmitButton_clicked()
         fileTransmitter->setFileName(ui->transmitPath->text());
         fileTransmitter->setPortName(ui->comPort->currentText());
         fileTransmitter->setPortBaudRate(ui->comBaudRate->currentText().toInt());
+
+        const TransmitDelayConfig delays = AppConfig::transmitDelays();
+        fileTransmitter->setTransferDelays(delays.firstDataDelayMs, delays.interPacketDelayMs);
 
         if(fileTransmitter->startTransmit() == true)
         {

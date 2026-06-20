@@ -15,6 +15,8 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets SerialPort)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets SerialPort)
 
 set(WHYMODEM_TRANSFER_SOURCES
+    src/config/AppConfig.cpp
+    src/config/AppConfig.h
     src/protocol/ITransferProtocol.h
     src/protocol/xmodem/XmodemProtocol.cpp
     src/protocol/xmodem/XmodemProtocol.h

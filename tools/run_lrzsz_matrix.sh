@@ -152,7 +152,7 @@ test_cli_send_xmodem() {
     local outdir="$WORK_DIR/xmodem-send"
     mkdir -p "$outdir"
 
-    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol xmodem --port "$GUI_PORT" --file "$src" \
+    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol xmodem --port "$GUI_PORT" --file "$src" --first-delay-ms 0 --inter-delay-ms 0 \
         --timeout-ms "$(cli_timeout_ms)" --raw-log "$outdir/cli.raw" \
         > "$outdir/cli.log" 2>&1 &
     local cli_pid=$!
@@ -196,7 +196,7 @@ test_cli_send_ymodem() {
     local outdir="$WORK_DIR/ymodem-send"
     mkdir -p "$outdir"
 
-    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol ymodem --port "$GUI_PORT" --file "$src" \
+    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol ymodem --port "$GUI_PORT" --file "$src" --first-delay-ms 0 --inter-delay-ms 0 \
         --timeout-ms "$(cli_timeout_ms)" --raw-log "$outdir/cli.raw" \
         > "$outdir/cli.log" 2>&1 &
     local cli_pid=$!
@@ -240,7 +240,7 @@ test_cli_send_zmodem() {
     local outdir="$WORK_DIR/zmodem-send"
     mkdir -p "$outdir"
 
-    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol zmodem --port "$GUI_PORT" --file "$src" \
+    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol zmodem --port "$GUI_PORT" --file "$src" --first-delay-ms 0 --inter-delay-ms 0 \
         --timeout-ms "$(cli_timeout_ms)" --raw-log "$outdir/cli.raw" \
         > "$outdir/cli.log" 2>&1 &
     local cli_pid=$!
@@ -284,7 +284,7 @@ test_cli_send_zmodem_without_rz() {
     local outdir="$WORK_DIR/zmodem-send-no-rz"
     mkdir -p "$outdir"
 
-    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol zmodem --port "$GUI_PORT" --file "$src" \
+    timeout "$TIMEOUT_SEC" "$CLI_BIN" send --protocol zmodem --port "$GUI_PORT" --file "$src" --first-delay-ms 0 --inter-delay-ms 0 \
         --timeout-ms "$(cli_timeout_ms)" --raw-log "$outdir/cli.raw" \
         > "$outdir/cli.log" 2>&1
     local cli_rc=$?
