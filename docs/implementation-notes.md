@@ -142,6 +142,8 @@ EOT -> ACK -> C -> empty block -> ACK
 
 发送端不能在收到 `ACK` 时立即发送最终空 block，否则可能把随后到来的 `C` 留到下一阶段并误判为重传请求，最终导致 GUI 端等待超时。
 
+接收端在收到 `EOT` 后会回复 `ACK` 和 `C`，随后等待发送端发出批量传输结束的空文件名 block。常见实现会用 `SOH` 发送 128 字节空 block，但 `lrzsz sb` 在部分场景下可能发送 `STX` 形式的 1024 字节空 block。WhYModem 接收端同时接受这两种结束 block，只要块号为 `0`、反码为 `0xFF`、文件名首字节为 `0x00` 且 CRC 正确，就回复 `ACK` 并标记接收完成。
+
 ## 6. ZMODEM 实现细节
 
 ZMODEM 通过 `ZmodemProtocol` 适配第三方 qzmodem 实现。ZMODEM 支持文件名、文件大小、批量文件和更复杂的自动握手流程。

@@ -1068,6 +1068,56 @@ void Ymodem::receiveStageFinished()
       break;
     }
 
+    case CodeStx:
+    {
+      uint16_t crc = ((uint16_t)(rxBuffer[YMODEM_PACKET_1K_SIZE + YMODEM_PACKET_OVERHEAD - 2]) << 8) |
+                     ((uint16_t)(rxBuffer[YMODEM_PACKET_1K_SIZE + YMODEM_PACKET_OVERHEAD - 1]) << 0);
+
+      if((rxBuffer[1] == 0x00) && (rxBuffer[2] == 0xFF) &&
+         (rxBuffer[YMODEM_PACKET_HEADER] == 0x00) &&
+         (crc == crc16(&(rxBuffer[YMODEM_PACKET_HEADER]), YMODEM_PACKET_1K_SIZE)))
+      {
+        timeCount   = 0;
+        errorCount  = 0;
+        dataCount   = 0;
+        code        = CodeNone;
+        stage       = StageNone;
+        txBuffer[0] = CodeAck;
+        txLength    = 1;
+        write(txBuffer, txLength);
+        callback(StatusFinish, NULL, NULL);
+      }
+      else
+      {
+        errorCount++;
+
+        if(errorCount > errorMax)
+        {
+          timeCount  = 0;
+          errorCount = 0;
+          dataCount  = 0;
+          code       = CodeNone;
+          stage      = StageNone;
+
+          for(txLength = 0; txLength < YMODEM_CODE_CAN_NUMBER; txLength++)
+          {
+            txBuffer[txLength] = CodeCan;
+          }
+
+          write(txBuffer, txLength);
+          callback(StatusError, NULL, NULL);
+        }
+        else
+        {
+          txBuffer[0] = CodeNak;
+          txLength    = 1;
+          write(txBuffer, txLength);
+        }
+      }
+
+      break;
+    }
+
     case CodeEot:
     {
       errorCount++;
