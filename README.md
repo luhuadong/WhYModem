@@ -192,4 +192,4 @@ Linux 版本：
 
 Windows 版本：
 
-![WhYmodem Windows V0.2.0](./docs/images/WhYmodem-V0.2.0-Windows.png)
+![WhYmodem Windows V0.2.0](./docs/images/WhYmodem-V1.0.0-Windows.png)
