@@ -188,8 +188,8 @@ cmake --build build --target package
 
 Linux 版本：
 
-![WhYmodem Linux V0.2.0](./docs/images/WhYmodem-V0.2.0-Linux.png)
+![WhYmodem Linux V0.2.0](./docs/images/WhYModem-V1.0.0-Linux.png)
 
 Windows 版本：
 
-![WhYmodem Windows V0.2.0](./docs/images/WhYmodem-V1.0.0-Windows.png)
+![WhYmodem Windows V0.2.0](./docs/images/WhYModem-V1.0.0-Windows.png)
