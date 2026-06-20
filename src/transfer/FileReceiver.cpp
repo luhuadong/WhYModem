@@ -89,6 +89,7 @@ bool FileReceiver::startReceive()
 
     if(serialPort->open(QSerialPort::ReadWrite) == true)
     {
+        serialPort->clear(QSerialPort::AllDirections);
         readTimer->start(READ_TIME_OUT);
 
         return true;
@@ -101,9 +102,10 @@ bool FileReceiver::startReceive()
 
 void FileReceiver::stopReceive()
 {
+    const bool transferOpened = file->isOpen() || pendingXmodemBlock.isEmpty() != true;
     file->close();
     pendingXmodemBlock.clear();
-    if(protocol)
+    if(protocol && transferOpened)
     {
         protocol->abort();
     }

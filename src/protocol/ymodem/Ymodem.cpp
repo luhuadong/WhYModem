@@ -425,23 +425,7 @@ void Ymodem::receiveStageEstablishing()
     {
       timeCount++;
 
-      if((timeCount / (timeDivide + 1)) > timeMax)
-      {
-        timeCount  = 0;
-        errorCount = 0;
-        dataCount  = 0;
-        code       = CodeNone;
-        stage      = StageNone;
-
-        for(txLength = 0; txLength < YMODEM_CODE_CAN_NUMBER; txLength++)
-        {
-          txBuffer[txLength] = CodeCan;
-        }
-
-        write(txBuffer, txLength);
-        callback(StatusTimeout, NULL, NULL);
-      }
-      else if((timeCount % (timeDivide + 1)) == 0)
+      if((timeCount % (timeDivide + 1)) == 0)
       {
         txBuffer[0] = CodeC;
         txLength    = 1;
@@ -631,9 +615,10 @@ void Ymodem::receiveStageEstablished()
       errorCount  = 0;
       dataCount   = 0;
       code        = CodeNone;
-      stage       = StageFinishing;
-      txBuffer[0] = CodeNak;
-      txLength    = 1;
+      stage       = StageFinished;
+      txBuffer[0] = CodeAck;
+      txBuffer[1] = CodeC;
+      txLength    = 2;
       write(txBuffer, txLength);
 
       break;
@@ -890,9 +875,10 @@ void Ymodem::receiveStageTransmitting()
       errorCount  = 0;
       dataCount   = 0;
       code        = CodeNone;
-      stage       = StageFinishing;
-      txBuffer[0] = CodeNak;
-      txLength    = 1;
+      stage       = StageFinished;
+      txBuffer[0] = CodeAck;
+      txBuffer[1] = CodeC;
+      txLength    = 2;
       write(txBuffer, txLength);
 
       break;
@@ -1025,6 +1011,7 @@ void Ymodem::receiveStageFinished()
                      ((uint16_t)(rxBuffer[YMODEM_PACKET_SIZE + YMODEM_PACKET_OVERHEAD - 1]) << 0);
 
       if((rxBuffer[1] == 0x00) && (rxBuffer[2] == 0xFF) &&
+         (rxBuffer[YMODEM_PACKET_HEADER] == 0x00) &&
          (crc == crc16(&(rxBuffer[YMODEM_PACKET_HEADER]), YMODEM_PACKET_SIZE)))
       {
         timeCount   = 0;

@@ -61,7 +61,6 @@ private:
     Stage stage;
     uint32_t timeCount;
     uint32_t errorCount;
-    uint32_t handshakeCount;
     uint32_t cancelCount;
     uint8_t packetNumber;
     bool useCrc;

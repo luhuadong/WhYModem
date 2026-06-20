@@ -53,6 +53,8 @@ WhYModem 打开：/dev/pts/5
 
 注意：`socat` 这个终端窗口不要关，关了虚拟串口就消失了。
 
+切换 XMODEM/YMODEM/ZMODEM 协议、取消传输或遇到失败后，如果下一次测试表现随机，优先关闭 WhYModem 串口并重启这一对虚拟串口。`socat`/pty 可能保留上一轮已经送到另一端队列中的握手或取消字节，WhYModem 只能清理自己当前打开端的缓冲。
+
 另外，`socat` 命令可以稍微增强为：
 
 ```bash
@@ -61,7 +63,11 @@ socat -d -d \
   pty,raw,echo=0,link=/tmp/whymodem_cli,wait-slave
 ```
 
-`wait-slave` 不是必须，但能减少一端还没打开时另一端启动太快造成的偶发现象。
+`wait-slave` 不是必须，但能减少一端还没打开时另一端启动太快造成的偶发现象。不使用 `wait-slave` 时也可以固定端口名：
+
+```bash
+socat -d -d pty,raw,echo=0,link=/tmp/whymodem_gui pty,raw,echo=0,link=/tmp/whymodem_cli
+```
 
 
 
@@ -253,7 +259,11 @@ rz /tmp/whymodem_cli
 
 第三，虚拟串口的波特率意义不大。`socat` 的 pty 对传输速度不会真实模拟 UART 波特率，所以它适合测试协议流程、收发状态机、文件完整性，不适合测试真实串口速率、丢包、电平、硬件流控等问题。
 
-第四，ZMODEM 有时会自动发送启动序列，GUI 端如果状态机处理不当，可能会出现“谁先开始”的同步问题。建议你的测试矩阵里明确区分：
+第四，切换协议前建议重新打开串口；如果刚刚发生过失败、取消或超时，建议直接重启 `socat`。这条对虚拟串口尤其重要，因为旧的 `C`、`NAK`、`CAN`、`EOT` 等控制字节可能已经排在命令行工具那一端，导致下一次测试看起来像协议状态机随机异常。真实串口一般也建议在切换协议前让两端回到空闲状态。
+
+第五，`lrzsz` 输出的 `Retry 0: NAK on sector` 是可恢复重传提示，不一定是失败。判断结果时以最终输出和文件校验为准：如果显示 `Transfer complete`，并且 `diff` 或 `sha256sum` 一致，就说明传输成功；如果连续 NAK 后出现 `Cancelled` 或 `Transfer incomplete`，才需要排查。
+
+第六，ZMODEM 有时会自动发送启动序列，GUI 端如果状态机处理不当，可能会出现“谁先开始”的同步问题。建议你的测试矩阵里明确区分：
 
 ```bash
 GUI Send  -> CLI Receive

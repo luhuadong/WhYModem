@@ -9,7 +9,6 @@ const uint32_t PacketOverheadChecksum = 4;
 const uint32_t TimeMax = 600;
 const uint32_t ErrorMax = 10;
 const uint32_t HandshakeInterval = 100;
-const uint32_t CrcHandshakeMax = 3;
 const uint32_t CanAbortCount = 2;
 }
 
@@ -85,7 +84,6 @@ void XmodemProtocol::reset()
     stage = StageNone;
     timeCount = 0;
     errorCount = 0;
-    handshakeCount = 0;
     cancelCount = 0;
     packetNumber = 1;
     useCrc = true;
@@ -103,7 +101,6 @@ void XmodemProtocol::receiveStageNone()
     stage = StageTransmitting;
     timeCount = 0;
     errorCount = 0;
-    handshakeCount = 0;
     cancelCount = 0;
     useCrc = true;
     sendCode(CodeC);
@@ -194,7 +191,8 @@ void XmodemProtocol::receiveStageTransmitting()
             break;
 
         default:
-            if(++timeCount > TimeMax)
+            ++timeCount;
+            if(receiverOpened && timeCount > TimeMax)
             {
                 if(protocolCallback)
                 {
@@ -204,12 +202,7 @@ void XmodemProtocol::receiveStageTransmitting()
             }
             else if((timeCount % HandshakeInterval) == 0)
             {
-                ++handshakeCount;
-                if(useCrc && handshakeCount > CrcHandshakeMax)
-                {
-                    useCrc = false;
-                }
-                sendCode(useCrc ? CodeC : CodeNak);
+                sendCode(CodeC);
             }
             break;
     }

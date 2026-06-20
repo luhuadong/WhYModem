@@ -97,6 +97,7 @@ bool FileTransmitter::startTransmit()
 
     if(serialPort->open(QSerialPort::ReadWrite) == true)
     {
+        serialPort->clear(QSerialPort::AllDirections);
         readTimer->start(READ_TIME_OUT);
 
         return true;
