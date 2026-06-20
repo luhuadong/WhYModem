@@ -54,6 +54,8 @@ set(WHYMODEM_GUI_SOURCES
     src/ui/aboutdialog.h
     src/ui/settingsdialog.cpp
     src/ui/settingsdialog.h
+    src/ui/versiondialog.cpp
+    src/ui/versiondialog.h
     resources/resources.qrc
 )
 
@@ -99,11 +101,12 @@ install(TARGETS WhYModem WhYModemCli
 
 install(FILES resources/logo.png
     DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps
-    RENAME io.geekat.WhYModem.png
+    RENAME io.geekat.whymodem.png
 )
 
 install(FILES packaging/io.geekat.WhYModem.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    RENAME io.geekat.whymodem.desktop
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
@@ -123,5 +126,6 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
 
 include(CPack)
