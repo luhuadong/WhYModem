@@ -27,6 +27,7 @@ public:
 
 protected:
     void changeEvent(QEvent *event) override;
+    bool eventFilter(QObject *object, QEvent *event) override;
 
 private slots:
     void on_comButton_clicked();
@@ -66,6 +67,7 @@ private:
     QByteArray currentRxLine;
     QByteArray pendingRxRender;
     bool rxPaused;
+    bool settingsButtonHovered;
 
     bool transmitButtonStatus;
     bool receiveButtonStatus;

@@ -4,6 +4,7 @@
 #include "ui/settingsdialog.h"
 #include <QMessageBox>
 #include <QEvent>
+#include <QObject>
 #include <QIcon>
 #include <QFileDialog>
 #include <QFile>
@@ -28,6 +29,16 @@ const int MaxRxLogLines = 500;
 const int MaxRxLineBytes = 16 * 1024;
 const int MaxPendingRxRenderBytes = 8 * 1024;
 const int RxRenderIntervalMs = 30;
+const double SettingsIconNormalBlend = 0.38;
+
+QColor BlendColor(const QColor &foreground, const QColor &background, double foregroundRatio)
+{
+    const double ratio = qBound(0.0, foregroundRatio, 1.0);
+    const double inverse = 1.0 - ratio;
+    return QColor(static_cast<int>(foreground.red() * ratio + background.red() * inverse),
+                  static_cast<int>(foreground.green() * ratio + background.green() * inverse),
+                  static_cast<int>(foreground.blue() * ratio + background.blue() * inverse));
+}
 
 void AppendHexByte(QString &text, unsigned char ch)
 {
@@ -78,7 +89,8 @@ Widget::Widget(QWidget *parent) :
     rxHexCheckBox(new QCheckBox(u8"十六进制显示")),
     settingsButton(new QPushButton),
     rxRenderTimer(new QTimer(this)),
-    rxPaused(false)
+    rxPaused(false),
+    settingsButtonHovered(false)
 {
     transmitButtonStatus = false;
     receiveButtonStatus  = false;
@@ -126,7 +138,9 @@ Widget::Widget(QWidget *parent) :
     settingsButton->setCursor(Qt::PointingHandCursor);
     settingsButton->setFixedSize(30, 30);
     settingsButton->setIconSize(QSize(18, 18));
-    settingsButton->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }");
+    settingsButton->setStyleSheet("QPushButton { min-width: 30px; max-width: 30px; padding: 0px; border-radius: 4px; }"
+                                  "QPushButton:hover { background: transparent; }");
+    settingsButton->installEventFilter(this);
 
     QHBoxLayout *footerLayout = new QHBoxLayout;
     footerLayout->setContentsMargins(0, 0, 0, 0);
@@ -208,6 +222,25 @@ void Widget::changeEvent(QEvent *event)
     }
 }
 
+bool Widget::eventFilter(QObject *object, QEvent *event)
+{
+    if(object == settingsButton)
+    {
+        if(event->type() == QEvent::Enter)
+        {
+            settingsButtonHovered = true;
+            updateSettingsIcon();
+        }
+        else if(event->type() == QEvent::Leave)
+        {
+            settingsButtonHovered = false;
+            updateSettingsIcon();
+        }
+    }
+
+    return QWidget::eventFilter(object, event);
+}
+
 void Widget::applyTransmitConfig()
 {
     const TransmitDelayConfig delays = AppConfig::transmitDelays();
@@ -231,7 +264,13 @@ void Widget::updateSettingsIcon()
         return;
     }
 
-    settingsButton->setIcon(ThemedSvgIcon(":/icons/settings.svg", palette().color(QPalette::ButtonText), QSize(64, 64)));
+    const QColor background = palette().color(QPalette::Window);
+    const QColor hoverColor = background.lightness() > 127 ? QColor(Qt::black) : QColor(Qt::white);
+    const QColor iconColor = settingsButtonHovered
+                               ? hoverColor
+                               : BlendColor(hoverColor, background, SettingsIconNormalBlend);
+
+    settingsButton->setIcon(ThemedSvgIcon(":/icons/settings.svg", iconColor, QSize(64, 64)));
 }
 
 void Widget::on_comButton_clicked()
