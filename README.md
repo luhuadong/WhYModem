@@ -6,6 +6,8 @@
 [![GitHub](https://img.shields.io/github/license/luhuadong/WhYModem.svg)](https://github.com/luhuadong/WhYModem/blob/master/LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](https://github.com/luhuadong/WhYModem/pulls)
 
+![WhYModem 串口文件传输工具](./docs/images/WhYModem_banner.png)
+
 WhYModem 是一个通过串口 XMODEM/YMODEM/ZMODEM 协议进行文件传输的 Qt 工具软件，非常小巧易用。程序中涉及到的协议知识，详细介绍参见维基百科（[XMODEM](https://en.wikipedia.org/wiki/XMODEM)、[YMODEM](https://en.wikipedia.org/wiki/YMODEM)、[ZMODEM](https://en.wikipedia.org/wiki/ZMODEM)）。
 
 ## 软件架构
